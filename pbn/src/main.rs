@@ -26,25 +26,8 @@ fn main() {
     }
 
     // Replace all pixels with the nearest centroid
-    let mut new_pixels = Vec::new();
-    for pixel in pixels.iter() {
-        let mut min_distance = f64::MAX;
-        let mut min_index = 0;
-        for i in 0..centroids.len() {
-            let d = kmeans::distance(pixel, &centroids[i]);
-            if d < min_distance {
-                min_distance = d;
-                min_index = i;
-            }
-        }
-        new_pixels.push(centroids[min_index]);
-    }
-
-    // Create a new image with the new pixels
-    let new_img = image::ImageBuffer::from_fn(img_rgb.width(), img_rgb.height(), |x, y| {
-        new_pixels[(y * img_rgb.width() + x) as usize]
-    });
+    let new_img = canvas::recolor(img_rgb, &centroids);
 
     // Save the new image
-    new_img.save("/home/mikey/code/numpainter/pbn/tree_paint.jpg").unwrap();
+    new_img.save("/home/mikey/code/numpainter/pbn/tree_paint.png").unwrap();
 }
