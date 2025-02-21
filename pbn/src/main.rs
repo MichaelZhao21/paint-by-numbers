@@ -5,7 +5,7 @@ use image::open;
 use kmeans::kmeans;
 
 fn main() {
-    let img = open("/home/mikey/code/numpainter/pbn/tree.jpg").unwrap();
+    let img = open("/home/mikey/code/paint-by-numbers/pbn/tree.jpg").unwrap();
     let img_rgb = img.to_rgb8();
 
     // Shrink image
@@ -26,8 +26,15 @@ fn main() {
     }
 
     // Replace all pixels with the nearest centroid
-    let new_img = canvas::recolor(img_rgb, &centroids);
+    let img_rgb = canvas::recolor(img_rgb, &centroids);
+
+    // Remove all areas that have less than the min defined area
+    let img_rgb = canvas::denoise(img_rgb, 5);
+
+    // Scale up the image 4x
+    let img_rgb = canvas::scale(img_rgb, 4);
+    println!("Done!");
 
     // Save the new image
-    new_img.save("/home/mikey/code/numpainter/pbn/tree_paint.png").unwrap();
+    img_rgb.save("/home/mikey/code/paint-by-numbers/pbn/tree_paint.png").unwrap();
 }
