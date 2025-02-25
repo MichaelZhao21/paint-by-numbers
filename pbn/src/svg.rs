@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use image::RgbImage;
+use image::{Rgb, RgbImage};
 
 pub fn img_to_svg(img: &RgbImage) -> String {
     println!("Converting image to SVG...");
@@ -15,21 +15,24 @@ pub fn img_to_svg(img: &RgbImage) -> String {
         width, height
     ));
 
-    // Draw borders
-    draw_borders(img, &mut out);
+    // Create map of nums to colors
+    let mut color_map = std::collections::HashMap::<&Rgb<u8>, u32>::new();
+    let mut color_count = 0;
+    for y in 0..height {
+        for x in 0..width {
+            let color = img.get_pixel(x, y);
+            if !color_map.contains_key(&color) {
+                color_count += 1;
+                color_map.insert(color, color_count);
+            }
+        }
+    }
 
-    // SVG Footer
-    out.push_str("</svg>\n");
-    out
-}
-
-fn draw_borders(img: &RgbImage, out: &mut String) {
-    // Set up variables to do loopy
-    let mut visited = vec![vec![false; img.height() as usize]; img.width() as usize];
-
+    // Draw borders and numbers
     // Loop through all pixels
-    for x in 0..img.width() {
-        for y in 0..img.height() {
+    let mut visited = vec![vec![false; img.height() as usize]; img.width() as usize];
+    for y in 0..img.height() {
+        for x in 0..img.width() {
             // If visited, ignore
             if visited[x as usize][y as usize] {
                 continue;
@@ -46,7 +49,7 @@ fn draw_borders(img: &RgbImage, out: &mut String) {
 
             // Write the borders to SVG
             out.push_str("<path stroke=\"white\" fill=\"transparent\" stroke-width=\"1\" d=\"");
-            for border in borders {
+            for border in borders.iter() {
                 out.push_str(&format!(" M{} {}", border[0].0, border[0].1));
                 for (x, y) in border.iter().skip(1) {
                     out.push_str(&format!(" L {} {}", x, y));
@@ -54,8 +57,20 @@ fn draw_borders(img: &RgbImage, out: &mut String) {
                 out.push_str(" Z");
             }
             out.push_str("\" />\n");
+
+            // Draw the number
+            let (nx, ny) = get_num_pos(&borders[0]);
+            let col_index = color_map.get(&img.get_pixel(x, y)).unwrap();
+            out.push_str(&format!(
+                "<text x=\"{}\" y=\"{}\" font-family=\"Verdana\" font-size=\"10\" fill=\"red\">{}</text>\n",
+                nx, ny, col_index
+            ));
         }
     }
+
+    // SVG Footer
+    out.push_str("</svg>\n");
+    out
 }
 
 /// Find the borders of an area, returning a list of list of border points.
@@ -221,9 +236,26 @@ fn follow_edge(
 
         // If we reach here and haven't found anything, we have a problem
         if !found {
-            println!("WARNING: Area is not closed at {:?} (cannot find border to follow)", current);
+            println!(
+                "WARNING: Area is not closed at {:?} (cannot find border to follow)",
+                current
+            );
             return border;
             // panic!("Area is not closed");
         }
     }
+}
+
+fn get_num_pos(border: &Vec<(usize, usize)>) -> (usize, usize) {
+    // Find the center of the border
+    let mut x_sum = 0;
+    let mut y_sum = 0;
+    for (x, y) in border {
+        x_sum += x;
+        y_sum += y;
+    }
+    let x_center = x_sum / border.len();
+    let y_center = y_sum / border.len();
+
+    return (x_center, y_center);
 }
