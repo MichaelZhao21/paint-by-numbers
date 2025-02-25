@@ -4,6 +4,7 @@ use rand::{distr::{weighted::WeightedIndex, Distribution}, Rng};
 const MAX_ITER: i32 = 100;
 
 pub fn kmeans(arr: &Vec<&Rgb<u8>>, k: i32) -> Vec<Rgb<u8>> {
+    println!("Running K-means with k={k}...");
     let mut centroids = Vec::<Rgb<u8>>::new();
 
     // Clone arr
@@ -93,8 +94,7 @@ pub fn kmeans(arr: &Vec<&Rgb<u8>>, k: i32) -> Vec<Rgb<u8>> {
         }
 
         iter += 1;
-
-        println!("Iteration: {}", iter);
+        // println!("KMeans Iteration: {}", iter);
     }
 
     return centroids;

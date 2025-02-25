@@ -33,7 +33,7 @@ pub fn shrink(img: RgbImage, max_size: u32) -> RgbImage {
 }
 
 pub fn scale(img: RgbImage, scale: u32) -> RgbImage {
-    println!("Scaling image up by {}...", scale);
+    println!("Scaling image up by {}x...", scale);
     let (width, height) = img.dimensions();
     let new_size = (width * scale, height * scale);
     return image::imageops::resize(
@@ -46,6 +46,7 @@ pub fn scale(img: RgbImage, scale: u32) -> RgbImage {
 
 /// Replace all pixels in an image with the nearest centroid
 pub fn recolor(img: RgbImage, centroids: &Vec<image::Rgb<u8>>) -> RgbImage {
+    println!("Replacing colors in image...");
     let mut new_img = img.clone();
     for pixel in new_img.pixels_mut() {
         let mut min_distance = f64::MAX;
@@ -64,25 +65,13 @@ pub fn recolor(img: RgbImage, centroids: &Vec<image::Rgb<u8>>) -> RgbImage {
 
 /// Remove all areas in an image that have less than the min defined area
 pub fn denoise(img: RgbImage, min_area: u32) -> RgbImage {
-    // 1. Keep track of visited pixels
-    // 2. Loop through grid top to bottom, left to right
-    // 3. Each time we encounter a cell that isn't visited do the following:
-    // 	1. Create a set called **edge set**
-    // 	2. Run flood fill, counting the number of cells visited and visiting the cells
-    // 	3. At the edges, add to **edge set**
-    // 	4. Figure out the new color based on the most common color in the edge set
-    // 	5. Add all edges in edge set to a queue, iterate through them:
-    // 		1. If the edge does not match the new color, ignore it and continue
-    // 		2. If the edge is VISITED and matches the new color, "expand" the current area, increase the area count by **the threshold**, and remove them from the edge set (the logic here is that if an edge is visited, it means that it already larger than the min area and thus will make the current area larger than the min area; ie. the visited edge will be a part of a group of colors that is at least the size of the threshold)
-    // 		3. If the edge is NOT VISITED and matches the new color, "expand" the current area, visiting those nodes, increasing the area count, and removing them from the edge set
-    // 		4. Add all of the edges' unvisited children to the queue
-    // 	7. If the area is above the threshold or no more edges remain in the edge set, exit
-    // 	8. Otherwise, repeat from step 5
+    println!("Denoising image with minimum area {min_area} pixels...");
 
     // Create a new image to store the denoised image
     // Need to use Rc and RefCell to allow for mutable and immutable borrows (Sometimes i fuckin hate rust)
     let new_img_ref = Rc::new(RefCell::new(img.clone()));
 
+    // Keep track of visited cells
     let mut visited = vec![vec![false; img.height() as usize]; img.width() as usize];
 
     // Loop through the image's pixels
@@ -94,6 +83,7 @@ pub fn denoise(img: RgbImage, min_area: u32) -> RgbImage {
             }
             let mut curr_visited = HashSet::<(usize, usize)>::new();
             let mut color;
+            let mut new_color_items = HashSet::<(usize, usize)>::new();
 
             // Block for immutable borrow
             {
@@ -121,9 +111,8 @@ pub fn denoise(img: RgbImage, min_area: u32) -> RgbImage {
                     if visited[x][y] {
                         // If it matches the current color, then that means that the new area will be > min_area
                         // as all visited pixels are part of an area that is > min_area
-                        // However, thinking about it, this case should never happen...
+                        // However, thinking about it, this case should never happen... (but it does??)
                         if *new_img.get_pixel(x as u32, y as u32) == color {
-                            println!("Edge pixel is same color... this shouldn't happen oopsie");
                             area += min_area;
                         }
                         edge_set.insert((x, y));
@@ -151,11 +140,10 @@ pub fn denoise(img: RgbImage, min_area: u32) -> RgbImage {
                     }
                 }
 
-                println!("Edge set: {:?}", edge_set);
-                println!("Area after initial: {}", area);
+                // println!("Edge set: {:?}", edge_set);
+                // println!("Area after initial: {}", area);
 
                 // If the area is below the threshold, we need to expand our area
-                let mut new_color_items = HashSet::<(usize, usize)>::new();
                 while area < min_area {
                     // If there are no more edges, we can't expand anymore
                     if edge_set.is_empty() {
@@ -172,9 +160,8 @@ pub fn denoise(img: RgbImage, min_area: u32) -> RgbImage {
                         let color = new_img.get_pixel(*x as u32, *y as u32);
                         *color_counts.entry(color).or_insert(0) += 1;
                     }
-                    println!("Color counts: {:?}", color_counts);
                     let new_color = *color_counts.iter().max_by(|a, b| a.1.cmp(b.1)).unwrap().0;
-                    println!("New color: {:?}", new_color);
+                    // println!("New color: {:?}", new_color);
 
                     // Check every edge node, running flood fill on any that are the same color and not visited
                     let mut queue = VecDeque::from_iter(edge_set.clone());
@@ -225,11 +212,10 @@ pub fn denoise(img: RgbImage, min_area: u32) -> RgbImage {
 
                     color = *new_color;
                 }
-                println!("Color: {:?}", color);
-
-                println!("Visited: {:?}", curr_visited.len());
-                println!("Area after edge fill: {:?}", area);
-                println!("==============================================\n");
+                // println!("Color: {:?}", color);
+                // println!("Visited: {:?}", curr_visited.len());
+                // println!("Area after edge fill: {:?}", area);
+                // println!("==============================================\n");
             }
 
             // Visit all pixels in the area and color them
@@ -237,9 +223,9 @@ pub fn denoise(img: RgbImage, min_area: u32) -> RgbImage {
                 let mut new_img_mut = new_img_ref.borrow_mut();
                 for (x, y) in curr_visited.iter() {
                     // Ignore everything that's already colored correctly
-                    // if new_color_items.contains(&(*x, *y)) {
-                    //     continue;
-                    // }
+                    if new_color_items.contains(&(*x, *y)) {
+                        continue;
+                    }
 
                     visited[*x][*y] = true;
                     new_img_mut.put_pixel(*x as u32, *y as u32, color);
