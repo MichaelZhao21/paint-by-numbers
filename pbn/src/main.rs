@@ -7,15 +7,16 @@ use kmeans::kmeans;
 
 fn main() {
     // Variables!
-    let file_name = "/home/mikey/code/paint-by-numbers/pbn/tree.jpg";
-    let flat_file_name = "/home/mikey/code/paint-by-numbers/pbn/tree_paint.png";
-    let svg_file_name = "/home/mikey/code/paint-by-numbers/pbn/tree_paint.svg";
-    // let flat_file_name = "/home/mikey/code/paint-by-numbers/pbn/testfill.png";
-    // let svg_file_name = "/home/mikey/code/paint-by-numbers/pbn/testfill.svg";
-    let k = 20;
-    let min_area = 20;
+    // let file_name = "/home/mikey/code/paint-by-numbers/pbn/tree.jpg";
+    // let flat_file_name = "/home/mikey/code/paint-by-numbers/pbn/tree_paint.png";
+    // let svg_file_name = "/home/mikey/code/paint-by-numbers/pbn/tree_paint.svg";
+    let file_name = "/home/mikey/code/paint-by-numbers/pbn/hacker.jpg";
+    let flat_file_name = "/home/mikey/code/paint-by-numbers/pbn/hacker.png";
+    let svg_file_name = "/home/mikey/code/paint-by-numbers/pbn/hacker.svg";
+    let k = 10;
+    let min_area = 30;
 
-    // img_to_flat(file_name, flat_file_name, k, min_area);
+    img_to_flat(file_name, flat_file_name, k, min_area);
     flat_to_svg(flat_file_name, svg_file_name);
 }
 

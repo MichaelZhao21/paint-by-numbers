@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
 use image::{Rgb, RgbImage};
+use std::cmp;
 
 pub fn img_to_svg(img: &RgbImage) -> String {
     println!("Converting image to SVG...");
@@ -43,9 +44,15 @@ pub fn img_to_svg(img: &RgbImage) -> String {
 
             // If the borders are empty, ignore
             if borders.is_empty() {
-                println!("WARNING: Area is empty at ({}, {})", x, y);
+                println!(
+                    "WARNING: Could not find borders for area with ({}, {})",
+                    x, y
+                );
                 continue;
             }
+
+            // Get the position of the number
+            let (nx, ny) = get_num_pos(&borders, img.height() as usize);
 
             // Write the borders to SVG
             out.push_str("<path stroke=\"white\" fill=\"transparent\" stroke-width=\"1\" d=\"");
@@ -59,10 +66,9 @@ pub fn img_to_svg(img: &RgbImage) -> String {
             out.push_str("\" />\n");
 
             // Draw the number
-            let (nx, ny) = get_num_pos(&borders[0]);
             let col_index = color_map.get(&img.get_pixel(x, y)).unwrap();
             out.push_str(&format!(
-                "<text x=\"{}\" y=\"{}\" font-family=\"Verdana\" font-size=\"10\" fill=\"red\">{}</text>\n",
+                "<text x=\"{}\" y=\"{}\" font-family=\"Verdana\" font-size=\"7\" fill=\"red\">{}</text>\n",
                 nx, ny, col_index
             ));
         }
@@ -246,16 +252,131 @@ fn follow_edge(
     }
 }
 
-fn get_num_pos(border: &Vec<(usize, usize)>) -> (usize, usize) {
-    // Find the center of the border
+/// Get the position of the number for a given area.
+/// The function will return the position of the number as a tuple of (x, y).
+fn get_num_pos(border_list: &Vec<Vec<(usize, usize)>>, max_height: usize) -> (usize, usize) {
+    // Get the first border
+    let outer_border = &border_list[0];
+
+    // Find the centroid of the outer polygon
     let mut x_sum = 0;
     let mut y_sum = 0;
-    for (x, y) in border {
+    for (x, y) in outer_border {
         x_sum += x;
         y_sum += y;
     }
-    let x_center = x_sum / border.len();
-    let y_center = y_sum / border.len();
+    let mut centroid = (x_sum / outer_border.len(), y_sum / outer_border.len());
 
-    return (x_center, y_center);
+    // Flatten all borders into one
+    let borders = border_list
+        .iter()
+        .flatten()
+        .collect::<Vec<&(usize, usize)>>();
+
+    // If centroid is on a border, move it in one of the directions that isn't a border
+    if borders.contains(&&centroid) {
+        let mut new_centroid = centroid;
+        for (dx, dy) in DIRECTIONS.iter() {
+            let nx = centroid.0 as i32 + dx;
+            let ny = centroid.1 as i32 + dy;
+            if !borders.contains(&&(nx as usize, ny as usize)) {
+                new_centroid = (nx as usize, ny as usize);
+                break;
+            }
+        }
+        if centroid == new_centroid {
+            panic!("Could not find a new centroid");
+        }
+        centroid = new_centroid;
+    }
+
+    // Count the number of times a ray to the positive x direction intersects the borders
+    let border_hits = borders
+        .iter()
+        .filter(|&b| (*b).1 == centroid.1 && (*b).0 > centroid.0)
+        .count();
+    let inside = border_hits % 2 == 1;
+
+    // Loop through list of borders and find borders in the 4 directions
+    let mut left = Vec::<(usize, usize)>::new();
+    let mut right = Vec::<(usize, usize)>::new();
+    let mut up = Vec::<(usize, usize)>::new();
+    let mut down = Vec::<(usize, usize)>::new();
+
+    for border in border_list.iter() {
+        for (x, y) in border {
+            if *y == centroid.1 {
+                if *x < centroid.0 {
+                    left.push((*x, *y));
+                } else {
+                    right.push((*x, *y));
+                }
+            }
+            if *x == centroid.0 {
+                if *y < centroid.1 {
+                    up.push((*x, *y));
+                } else {
+                    down.push((*x, *y));
+                }
+            }
+        }
+    }
+
+    // Sort all lists by distance to centroid
+    left.sort_by(|a, b| b.0.cmp(&a.0));
+    right.sort_by(|a, b| a.0.cmp(&b.0));
+    up.sort_by(|a, b| b.1.cmp(&a.1));
+    down.sort_by(|a, b| a.1.cmp(&b.1));
+
+    // Make list of possible points
+    let mut possible_points = Vec::<((usize, usize), (usize, usize))>::new();
+
+    if inside {
+        // If inside, take first point from left and right, then up and down
+        if left.len() > 0 && right.len() > 0 {
+            possible_points.push((left[0], right[0]));
+        }
+        if up.len() > 0 && down.len() > 0 {
+            possible_points.push((up[0], down[0]));
+        }
+    } else {
+        // Otherwise, take two points from each side
+        if left.len() > 1 {
+            possible_points.push((left[0], left[1]));
+        }
+        if right.len() > 1 {
+            possible_points.push((right[0], right[1]));
+        }
+        if up.len() > 1 {
+            possible_points.push((up[0], up[1]));
+        }
+        if down.len() > 1 {
+            possible_points.push((down[0], down[1]));
+        }
+    }
+
+    // println!("Centroid: {:?}", centroid);
+    // println!("Possible Points: {:?}", possible_points);
+
+    // Find the pair of points that have the largest distance between them
+    let mut max_dist = 0;
+    let mut max_pair = (centroid, centroid);
+    for (p1, p2) in possible_points {
+        let dist = (p1.0 as i32 - p2.0 as i32).pow(2) + (p1.1 as i32 - p2.1 as i32).pow(2);
+        if dist > max_dist {
+            max_dist = dist;
+            max_pair = (p1, p2);
+        }
+    }
+
+    // println!("Max Pair: {:?}", max_pair);
+
+    // Return the midpoint of the pair of points
+    let d = 2;
+    let nx = cmp::max((max_pair.0 .0 + max_pair.1 .0) / 2 - d, d) as usize;
+    let ny = cmp::min((max_pair.0 .1 + max_pair.1 .1) / 2 + d, max_height - d) as usize;
+    // println!("Point: {:?}", (nx, ny));
+    // println!("==========================================================");
+
+    (nx, ny)
 }
