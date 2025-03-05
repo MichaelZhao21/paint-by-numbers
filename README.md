@@ -1,38 +1,29 @@
-# sv
+# Paint by Numbers!
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Work in progress...
 
-## Creating a project
+As the name suggests, this is a Paint by Numbers generator and player. Inspired by my [QWERHacks 2025 project](https://devpost.com/software/paint-by-campus), I wanted to remake the paint by numbers app to be faster and fully client-side. To do this, I re-wrote the backend part in Rust with the intention of compiling it to WebAssembly.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Rust compilation
+
+To compile the Rust app, we will use `wasm-pack` to create a production wasm binary, along with helper js and ts files. Here is the command:
 
 ```bash
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
+RUSTFLAGS='--cfg getrandom_backend="wasm_js"' wasm-pack build --target web
 ```
 
-## Developing
+### Testing Rust functions
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+To run tests, simply replace the `<TEST_NAME>` with the name of the test in the following function:
+
+```bash
+cargo test -- --nocapture <TEST_NAME>
+```
+
+## Running the frontend app
+
+To run the frontend, make sure the Rust package is compiled. Then, install the packages using `npm install`. Finally, run the app using the following:
 
 ```bash
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
-
-## Building
-
-To create a production version of your app:
-
-```bash
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.

@@ -4,7 +4,6 @@ mod svg;
 mod imgutil;
 
 use wasm_bindgen::prelude::*;
-use image::open;
 use kmeans::kmeans;
 
 #[wasm_bindgen]
@@ -19,7 +18,7 @@ pub fn img_to_flat(input: Vec<u8>, k: i32, min_area: u32) -> Vec<u8> {
     console_error_panic_hook::set_once();
 
     // Open the image
-    let img = imgutil::vec_to_image(input).unwrap();
+    let img = imgutil::vec_to_image(&input).unwrap();
     let img_rgb = img.to_rgb8();
 
     // Print out width and height
@@ -52,17 +51,15 @@ pub fn img_to_flat(input: Vec<u8>, k: i32, min_area: u32) -> Vec<u8> {
     flat_img
 }
 
-pub fn flat_to_svg(file_name: &str, out_file_name: &str) {
+pub fn flat_to_svg(input: Vec<u8>) -> String {
+    console_error_panic_hook::set_once();
+
     // Open the image
-    let img = open(file_name).unwrap();
+    let img = imgutil::vec_to_image(&input).unwrap();
     let img_rgb = img.to_rgb8();
 
     // Convert the image to SVG
-    let svg = svg::img_to_svg(&img_rgb);
-
-    // Write the SVG to a file
-    std::fs::write(out_file_name, svg).unwrap();
-    println!("Done converting flat image to svg!");
+    svg::img_to_svg(&img_rgb)
 }
 
 #[cfg(test)]
@@ -70,18 +67,61 @@ mod tests {
     use super::*;
 
     #[test]
-    fn main() {
+    fn all() {
         // Variables!
-        // let file_name = "/home/mikey/code/paint-by-numbers/pbn/tree.jpg";
-        // let flat_file_name = "/home/mikey/code/paint-by-numbers/pbn/tree_paint.png";
-        // let svg_file_name = "/home/mikey/code/paint-by-numbers/pbn/tree_paint.svg";
-        let file_name = "/home/mikey/code/paint-by-numbers/pbn/hacker.jpg";
-        let flat_file_name = "/home/mikey/code/paint-by-numbers/pbn/hacker.png";
-        let svg_file_name = "/home/mikey/code/paint-by-numbers/pbn/hacker.svg";
+        let file_name = "./test/tree.jpg";
+        let flat_file_name = "./test/tree_paint.png";
+        let svg_file_name = "./test/tree_paint.svg";
         let k = 10;
         let min_area = 30;
 
-        // img_to_flat(file_name, flat_file_name, k, min_area);
-        // flat_to_svg(flat_file_name, svg_file_name);
+        // Open image
+        let img = image::open(file_name).unwrap();
+        let img_rgb = img.to_rgb8();
+        let buffer = imgutil::image_to_vec(&img_rgb, image::ImageFormat::Png);
+
+        let out = img_to_flat(buffer, k, min_area);
+        
+        // Write image to file
+        let img = imgutil::vec_to_image(&out).unwrap();
+        img.save(flat_file_name).unwrap();
+
+        // Convert to SVG
+        let svg = flat_to_svg(out);
+        std::fs::write(svg_file_name, svg).expect("Unable to write file");
+    }
+
+    #[test]
+    fn test_flat_img() {
+        // Variables!
+        let file_name = "./test/tree.jpg";
+        let flat_file_name = "./test/tree_paint.png";
+        let k = 10;
+        let min_area = 30;
+
+        // Open image
+        let img = image::open(file_name).unwrap();
+        let img_rgb = img.to_rgb8();
+        let buffer = imgutil::image_to_vec(&img_rgb, image::ImageFormat::Png);
+
+        let out = img_to_flat(buffer, k, min_area);
+        
+        // Write image to file
+        let img = imgutil::vec_to_image(&out).unwrap();
+        img.save(flat_file_name).unwrap();
+    }
+
+    #[test]
+    fn test_svg() {
+        let file_name = "./test/tree_paint.png";
+        let svg_file_name = "./test/tree_paint.svg";
+
+        let img = image::open(file_name).expect("Run test_flat_img first");
+        let img_rgb = img.to_rgb8();
+        let buffer = imgutil::image_to_vec(&img_rgb, image::ImageFormat::Png);
+
+        let svg = flat_to_svg(buffer);
+
+        std::fs::write(svg_file_name, svg).expect("Unable to write file");
     }
 }

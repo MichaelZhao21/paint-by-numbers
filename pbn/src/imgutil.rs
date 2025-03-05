@@ -2,7 +2,7 @@ use image::{DynamicImage, ImageError, ImageFormat, ImageReader, ImageBuffer, Rgb
 use std::io::Cursor;
 
 /// Converts a Vec<u8> to a DynamicImage.
-pub fn vec_to_image(data: Vec<u8>) -> Result<DynamicImage, ImageError> {
+pub fn vec_to_image(data: &Vec<u8>) -> Result<DynamicImage, ImageError> {
     let img = ImageReader::new(std::io::Cursor::new(data))
         .with_guessed_format()?  // Automatically detects format
         .decode()?;  // Decodes into a DynamicImage
