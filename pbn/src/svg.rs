@@ -54,6 +54,9 @@ pub fn img_to_svg(img: &RgbImage) -> String {
             // Get the position of the number
             let (nx, ny) = get_num_pos(&borders, img.height() as usize);
 
+            // Optimize the borders
+            let borders = borders.iter().map(|b| optimize_border(b.clone())).collect::<Vec<_>>();
+
             // Write the borders to SVG
             out.push_str("<path stroke=\"white\" fill=\"transparent\" stroke-width=\"1\" d=\"");
             for border in borders.iter() {
@@ -379,4 +382,37 @@ fn get_num_pos(border_list: &Vec<Vec<(usize, usize)>>, max_height: usize) -> (us
     // println!("==========================================================");
 
     (nx, ny)
+}
+
+fn optimize_border(border: Vec<(usize, usize)>) -> Vec<(usize, usize)> {
+    if border.len() < 3 {
+        return border;
+    }
+
+    let mut optimized = Vec::<(usize, usize)>::new();
+    optimized.push(border[0]);
+    let mut dir = (0, 0);
+    let mut curr = border[0];
+
+    // Loop through the border in order
+    for b in border.iter().skip(1) {
+        // Check direction of next border
+        let next_dir = (b.0 as i32 - curr.0 as i32, b.1 as i32 - curr.1 as i32);
+
+        // If direction is in the same direction, continue
+        // Current item part of the same current border line
+        if dir == (0, 0) || dir == next_dir {
+            dir = next_dir;
+            curr = *b;
+            continue;
+        }
+
+        // Otherwise, that means that we've changed directions
+        // Add the "curr" point to the list and update the direction
+        optimized.push(curr);
+        dir = next_dir;
+        curr = *b;
+    }
+
+    optimized
 }
