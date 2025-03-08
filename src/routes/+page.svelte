@@ -1,18 +1,21 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import init, { img_to_flat, test } from 'pbn';
+	import Button from '../components/Button.svelte';
+	import { goto } from '$app/navigation';
 
 	let files = $state<FileList | null>();
 	let fn = $state<string>();
 	let src = $state<string>();
 	let colors = $state<string>('10');
 	let minArea = $state<string>('20');
+	let loading = $state<boolean>(false);
 
 	$effect(() => {
-		fn = files ? files[0].name : '';
+		if (files) fn = files ? files[0].name : '';
 	});
 
-	async function convertFile() {
+	async function convertFilesInner() {
 		if (!files) {
 			return;
 		}
@@ -21,6 +24,10 @@
 		const c = parseInt(colors);
 		if (isNaN(c) || c < 1) {
 			alert('Colors must be a positive integer');
+			return;
+		}
+		if (c >= 100) {
+			alert('Colors must be less than 100');
 			return;
 		}
 
@@ -48,11 +55,41 @@
 
 		// Convert result back to image
 		src = URL.createObjectURL(new Blob([result], { type: 'image/png' }));
+
+		loading = false;
+	}
+
+	function convertFile() {
+		if (!files) {
+			return;
+		}
+
+		loading = true;
+		convertFilesInner();
+	}
+
+	async function download() {
+		if (!src) {
+			return;
+		}
+
+		const a = document.createElement('a');
+		a.href = src;
+		a.download = `${fn?.split('.')[0]}_flat.png`;
+		a.click();
+	}
+
+	async function startPaint() {
+		// Navigate to paint page
+		goto('/paint');
 	}
 
 	onMount(async () => {
 		// Load web assembly module
 		await init();
+
+		// Clear file input
+		files = null;
 
 		console.log(test());
 	});
@@ -62,32 +99,69 @@
 	});
 </script>
 
-<div class="flex flex-col items-center">
-	<h1 class="my-4 text-4xl font-bold">Image to Paint by Number!</h1>
-	<div class="mb-2 flex flex-row items-center">
-		<label for="image-upload" class="cursor-pointer p-1">
+<div class="flex flex-col items-center px-4">
+	<h1 class="mt-8 text-center text-4xl font-bold">Image to Paint by Number!</h1>
+	<p class="my-4 text-center text-slate-700">
+		Upload an image and convert it to a paint by number image!
+	</p>
+	<!-- <p class="my-4 text-center text-slate-700">
+		Generate a painting here! Once you are happy with your result, download your painting and click
+		"Start Painting"
+	</p> -->
+	<div
+		class="mb-4 flex flex-col flex-wrap items-center gap-y-2 rounded-lg bg-white p-4 drop-shadow-md"
+	>
+		<label for="image-upload" class="cursor-pointer p-1 hover:underline focus:underline">
 			{fn === '' ? 'Click to upload a file' : `${fn} (click to change)`}
 		</label>
-		<input type="file" id="image-upload" class="absolute z-[-1] opacity-0" bind:files />
+		<input type="file" id="image-upload" accept="image/*" class="absolute z-[-1] opacity-0" bind:files />
 
-		<label for="colors" class="pl-4 pr-1 font-bold">Colors:</label>
-		<input id="colors" type="text" bind:value={colors} class="w-8" />
-
-		<label for="minArea" class="pl-4 pr-1 font-bold">Min Area:</label>
-		<input id="minArea" type="text" bind:value={minArea} class="w-8" />
+		<div class="flex flex-wrap gap-x-4 gap-y-2">
+			<div class="flex">
+				<label for="colors" class="pr-1 font-bold">Colors:</label>
+				<input
+					id="colors"
+					type="text"
+					bind:value={colors}
+					class="w-8 rounded-sm border-2 px-1 duration-150 outline-none hover:border-purple-300 focus:border-purple-300"
+				/>
+			</div>
+			<div class="flex">
+				<label for="minArea" class="pr-1 font-bold">Min Area:</label>
+				<input
+					id="minArea"
+					type="text"
+					bind:value={minArea}
+					class="w-8 rounded-sm border-2 px-1 duration-150 outline-none hover:border-purple-300 focus:border-purple-300"
+				/>
+			</div>
+		</div>
 	</div>
-	<button onclick={convertFile} class="ml-4 cursor-pointer rounded-md border-2 px-2 py-1">
-		Convert
-	</button>
+	<div class="flex flex-row flex-wrap gap-4">
+		<Button text="Convert" handleClick={convertFile} disabled={files === null} />
+		{#if src && src !== ''}
+			<Button text="Download" handleClick={download} />
+			<Button text="Start Painting" handleClick={startPaint} />
+		{/if}
+	</div>
+	{#if loading}
+		<div
+			class="bg-opacity-50 fixed top-0 left-0 z-10 flex h-full w-full items-center justify-center backdrop-blur-lg"
+		>
+			<div class="h-32 w-32 animate-spin rounded-full border-t-4 border-purple-300"></div>
+		</div>
+	{/if}
 
 	<!-- Frame for image -->
-	<div class="mt-4">
-		<img
-			{src}
-			alt="converted flattened"
-			class="rounded-md border-2 border-black object-contain text-center"
-			height={800}
-			width={800}
-		/>
-	</div>
+	{#if src && src !== ''}
+		<div class="mt-4 mb-8">
+			<img
+				{src}
+				alt="converted flattened"
+				class="rounded-md bg-white object-contain text-center drop-shadow-md"
+				height={800}
+				width={800}
+			/>
+		</div>
+	{/if}
 </div>
