@@ -7,6 +7,31 @@ use wasm_bindgen::prelude::*;
 use kmeans::kmeans;
 
 #[wasm_bindgen]
+pub struct SvgData {
+    svg: String,
+    colors: Vec<String>,
+}
+
+impl SvgData {
+    pub fn new(svg: String, colors: Vec<String>) -> SvgData {
+        SvgData { svg, colors }
+    }
+}
+
+#[wasm_bindgen]
+impl SvgData {
+    #[wasm_bindgen(getter)]
+    pub fn svg(&self) -> String {
+        self.svg.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn colors(&self) -> js_sys::Array {
+        self.colors.iter().map(|c| JsValue::from(c.as_str())).collect()
+    }
+}
+
+#[wasm_bindgen]
 pub fn test() -> String {
     console_error_panic_hook::set_once();
     println!("Hello from Rust!");
@@ -51,7 +76,8 @@ pub fn img_to_flat(input: Vec<u8>, k: i32, min_area: u32) -> Vec<u8> {
     flat_img
 }
 
-pub fn flat_to_svg(input: Vec<u8>) -> String {
+#[wasm_bindgen]
+pub fn flat_to_svg(input: Vec<u8>) -> SvgData {
     console_error_panic_hook::set_once();
 
     // Open the image
@@ -59,7 +85,10 @@ pub fn flat_to_svg(input: Vec<u8>) -> String {
     let img_rgb = img.to_rgb8();
 
     // Convert the image to SVG
-    svg::img_to_svg(&img_rgb)
+    let (svg_data, colors) = svg::img_to_svg(&img_rgb);
+
+    // Return the SVG data
+    SvgData::new(svg_data, colors)
 }
 
 #[cfg(test)]
@@ -72,6 +101,7 @@ mod tests {
         let file_name = "./test/tree.jpg";
         let flat_file_name = "./test/tree_paint.png";
         let svg_file_name = "./test/tree_paint.svg";
+        let color_file_name = "./test/tree_colors.txt";
         let k = 10;
         let min_area = 30;
 
@@ -88,7 +118,8 @@ mod tests {
 
         // Convert to SVG
         let svg = flat_to_svg(out);
-        std::fs::write(svg_file_name, svg).expect("Unable to write file");
+        std::fs::write(svg_file_name, svg.svg).expect("Unable to write file");
+        std::fs::write(color_file_name, svg.colors.join("\n")).expect("Unable to write file");
     }
 
     #[test]
@@ -115,6 +146,7 @@ mod tests {
     fn test_svg() {
         let file_name = "./test/tree_paint.png";
         let svg_file_name = "./test/tree_paint.svg";
+        let color_file_name = "./test/tree_colors.txt";
 
         let img = image::open(file_name).expect("Run test_flat_img first");
         let img_rgb = img.to_rgb8();
@@ -122,6 +154,7 @@ mod tests {
 
         let svg = flat_to_svg(buffer);
 
-        std::fs::write(svg_file_name, svg).expect("Unable to write file");
+        std::fs::write(svg_file_name, svg.svg).expect("Unable to write file");
+        std::fs::write(color_file_name, svg.colors.join("\n")).expect("Unable to write file");
     }
 }

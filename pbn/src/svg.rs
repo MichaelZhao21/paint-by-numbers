@@ -3,7 +3,9 @@ use std::collections::VecDeque;
 use image::{Rgb, RgbImage};
 use std::cmp;
 
-pub fn img_to_svg(img: &RgbImage) -> String {
+/// Convert a flat image to an SVG string.
+/// Returns the SVG string and a list of colors used in the image.
+pub fn img_to_svg(img: &RgbImage) -> (String, Vec<String>) {
     println!("Converting image to SVG...");
     let mut out = String::with_capacity(1000);
 
@@ -18,6 +20,7 @@ pub fn img_to_svg(img: &RgbImage) -> String {
 
     // Create map of nums to colors
     let mut color_map = std::collections::HashMap::<&Rgb<u8>, u32>::new();
+    let mut color_list = Vec::<String>::new();
     let mut color_count = 0;
     for y in 0..height {
         for x in 0..width {
@@ -25,6 +28,7 @@ pub fn img_to_svg(img: &RgbImage) -> String {
             if !color_map.contains_key(&color) {
                 color_count += 1;
                 color_map.insert(color, color_count);
+                color_list.push(rgb_to_hex(color));
             }
         }
     }
@@ -32,6 +36,7 @@ pub fn img_to_svg(img: &RgbImage) -> String {
     // Draw borders and numbers
     // Loop through all pixels
     let mut visited = vec![vec![false; img.height() as usize]; img.width() as usize];
+    let mut area_count = 0;
     for y in 0..img.height() {
         for x in 0..img.width() {
             // If visited, ignore
@@ -58,7 +63,7 @@ pub fn img_to_svg(img: &RgbImage) -> String {
             let borders = borders.iter().map(|b| optimize_border(b.clone())).collect::<Vec<_>>();
 
             // Write the borders to SVG
-            out.push_str("<path stroke=\"white\" fill=\"transparent\" stroke-width=\"1\" d=\"");
+            out.push_str(&format!("<path stroke=\"black\" fill=\"transparent\" stroke-width=\"1\" id=\"shape-{}\" fill-rule=\"evenodd\" d=\"", area_count));
             for border in borders.iter() {
                 out.push_str(&format!(" M{} {}", border[0].0, border[0].1));
                 for (x, y) in border.iter().skip(1) {
@@ -71,15 +76,24 @@ pub fn img_to_svg(img: &RgbImage) -> String {
             // Draw the number
             let col_index = color_map.get(&img.get_pixel(x, y)).unwrap();
             out.push_str(&format!(
-                "<text x=\"{}\" y=\"{}\" font-family=\"Verdana\" font-size=\"7\" fill=\"red\">{}</text>\n",
-                nx, ny, col_index
+                "<text id=\"label-{}\" x=\"{}\" y=\"{}\" font-size=\"10\">{}</text>\n",
+                area_count, nx, ny, col_index
             ));
+
+            // Increment the area count
+            area_count += 1;
         }
     }
 
     // SVG Footer
     out.push_str("</svg>\n");
-    out
+
+    (out, color_list)
+}
+
+/// Convert an RGB color to a hex string.
+fn rgb_to_hex(rgb: &Rgb<u8>) -> String {
+    format!("#{:02X}{:02X}{:02X}", rgb[0], rgb[1], rgb[2])
 }
 
 /// Find the borders of an area, returning a list of list of border points.

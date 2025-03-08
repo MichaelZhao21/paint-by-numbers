@@ -3,17 +3,14 @@
 	import init, { img_to_flat, test } from 'pbn';
 	import Button from '../components/Button.svelte';
 	import { goto } from '$app/navigation';
+	import ImageUpload from '../components/ImageUpload.svelte';
 
-	let files = $state<FileList | null>();
-	let fn = $state<string>();
+	let files = $state<FileList | null>(null);
+	let fn = $derived(files ? files[0].name : '');
 	let src = $state<string>();
 	let colors = $state<string>('10');
 	let minArea = $state<string>('20');
 	let loading = $state<boolean>(false);
-
-	$effect(() => {
-		if (files) fn = files ? files[0].name : '';
-	});
 
 	async function convertFilesInner() {
 		if (!files) {
@@ -111,11 +108,7 @@
 	<div
 		class="mb-4 flex flex-col flex-wrap items-center gap-y-2 rounded-lg bg-white p-4 drop-shadow-md"
 	>
-		<label for="image-upload" class="cursor-pointer p-1 hover:underline focus:underline">
-			{fn === '' ? 'Click to upload a file' : `${fn} (click to change)`}
-		</label>
-		<input type="file" id="image-upload" accept="image/*" class="absolute z-[-1] opacity-0" bind:files />
-
+		<ImageUpload bind:files />
 		<div class="flex flex-wrap gap-x-4 gap-y-2">
 			<div class="flex">
 				<label for="colors" class="pr-1 font-bold">Colors:</label>
