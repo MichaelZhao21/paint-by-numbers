@@ -60,7 +60,10 @@ pub fn img_to_svg(img: &RgbImage) -> (String, Vec<String>) {
             let (nx, ny) = get_num_pos(&borders, img.height() as usize);
 
             // Optimize the borders
-            let borders = borders.iter().map(|b| optimize_border(b.clone())).collect::<Vec<_>>();
+            let borders = borders
+                .iter()
+                .map(|b| optimize_border(b.clone()))
+                .collect::<Vec<_>>();
 
             // Write the borders to SVG
             out.push_str(&format!("<path stroke=\"black\" fill=\"transparent\" stroke-width=\"1\" id=\"shape-{}\" fill-rule=\"evenodd\" class=\"unfilled\" d=\"", area_count));
@@ -202,6 +205,7 @@ fn follow_edge(
     y: usize,
 ) -> Vec<(usize, usize)> {
     let mut current = (x, y);
+    let mut parent = (x, y);
     let mut border = Vec::<(usize, usize)>::new();
     let mut found;
     border.push(current);
@@ -229,8 +233,8 @@ fn follow_edge(
                 continue;
             }
 
-            // Check if the new pixel is visited
-            if visited[nx as usize][ny as usize] {
+            // Check to make sure we don't go backwards
+            if parent == (nx as usize, ny as usize) {
                 continue;
             }
 
@@ -249,6 +253,7 @@ fn follow_edge(
 
             // If the new pixel is a border, add it to the border list, mark it as visited
             // and set the new pixel as the current pixel
+            parent = current;
             current = (nx as usize, ny as usize);
             border.push(current);
             visited[nx as usize][ny as usize] = true;
@@ -260,11 +265,10 @@ fn follow_edge(
         // If we reach here and haven't found anything, we have a problem
         if !found {
             println!(
-                "WARNING: Area is not closed at {:?} (cannot find border to follow)",
+                "WARNING: Area is not closed at {:?} (cannot find border to follow; this should not happen...)",
                 current
             );
             return border;
-            // panic!("Area is not closed");
         }
     }
 }

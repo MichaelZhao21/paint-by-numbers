@@ -145,6 +145,7 @@ mod tests {
     #[test]
     fn test_svg() {
         let file_name = "./test/tree_paint.png";
+        let file_name = "./test/clouds_flat.png";
         let svg_file_name = "./test/tree_paint.svg";
         let color_file_name = "./test/tree_colors.txt";
 
