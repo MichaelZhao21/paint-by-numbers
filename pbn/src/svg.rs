@@ -376,21 +376,19 @@ fn get_num_pos(border_list: &Vec<Vec<(usize, usize)>>, max_height: usize) -> (us
         }
     }
 
-    // println!("Centroid: {:?}", centroid);
-    // println!("Possible Points: {:?}", possible_points);
+    let possible_midpoints = possible_points.iter().map(|(a, b)| ((a.0 + b.0) / 2, (a.1 + b.1) / 2));
 
-    // Find the pair of points that have the largest distance between them
-    let mut max_dist = 0;
-    let mut max_pair = (centroid, centroid);
-    for (p1, p2) in possible_points {
-        let dist = (p1.0 as i32 - p2.0 as i32).pow(2) + (p1.1 as i32 - p2.1 as i32).pow(2);
-        if dist > max_dist {
-            max_dist = dist;
-            max_pair = (p1, p2);
+    // Find the midpoint with the smallest distance to each of the 4 edges
+    let mut min_dist = usize::MAX;
+    let mut min_index = 0;
+    for (i, midpoint) in possible_midpoints.enumerate() {
+        let dist = dist_to_borders(&midpoint, &border_list);
+        if dist < min_dist {
+            min_dist = dist;
+            min_index = i;
         }
     }
-
-    // println!("Max Pair: {:?}", max_pair);
+    let max_pair = possible_points[min_index];
 
     // Return the midpoint of the pair of points
     let d = 2;
@@ -402,6 +400,38 @@ fn get_num_pos(border_list: &Vec<Vec<(usize, usize)>>, max_height: usize) -> (us
     (nx, ny)
 }
 
+/// Find the distance of a midpoint to the first border in the 4 cardinal directions
+fn dist_to_borders(midpoint: &(usize, usize), border_list: &Vec<Vec<(usize, usize)>>) -> usize {
+    let mut left = (usize::MAX, usize::MAX);
+    let mut right = (usize::MAX, usize::MAX);
+    let mut up = (usize::MAX, usize::MAX);
+    let mut down = (usize::MAX, usize::MAX);
+    for border in border_list {
+        for (x, y) in border {
+            if *y == midpoint.1 {
+                if *x < midpoint.0 {
+                    left = cmp::min(left, (*x, *y));
+                } else {
+                    right = cmp::min(right, (*x, *y));
+                }
+            }
+            if *x == midpoint.0 {
+                if *y < midpoint.1 {
+                    up = cmp::min(up, (*x, *y));
+                } else {
+                    down = cmp::min(down, (*x, *y));
+                }
+            }
+        }
+    }
+    if left == (usize::MAX, usize::MAX) || right == (usize::MAX, usize::MAX) || up == (usize::MAX, usize::MAX) || down == (usize::MAX, usize::MAX) {
+        println!("WARNING: Could not find all borders around midpoint {:?}", midpoint);
+        return usize::MAX;
+    }
+    return right.0 - left.0 + down.1 - up.1;
+}
+
+/// Optimize the border by removing points that are in the same line.
 fn optimize_border(border: Vec<(usize, usize)>) -> Vec<(usize, usize)> {
     if border.len() < 3 {
         return border;
