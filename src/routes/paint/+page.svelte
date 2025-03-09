@@ -7,7 +7,8 @@
 	let files = $state<FileList | null>(null);
 	let loaded = $state<boolean>(false);
 	let shape = $state<string | null>(null);
-    let colors = $state<string[]>([]);
+	let colors = $state<string[]>([]);
+	let active = $state<number | null>(0);
 
 	async function startPainting() {
 		if (!files) {
@@ -20,8 +21,8 @@
 		const u8s = new Uint8Array(blob);
 
 		const data = flat_to_svg(u8s);
-        shape = data.svg;
-        colors = data.colors;
+		shape = data.svg;
+		colors = data.colors;
 
 		loaded = true;
 	}
@@ -32,21 +33,32 @@
 	});
 
 	$effect(() => {
-        if (!shape) return;
+		if (!shape) return;
 
 		const count = shape.match(/<path/g)?.length || 0;
 
 		// Create click event listeners for each path
 		for (let i = 0; i < count; i++) {
-			console.log(document.getElementById(`shape-${i}`));
+			function paint() {
+				const label = document.getElementById(`label-${i}`);
+				if (!label) return;
+				const el = document.getElementById(`shape-${i}`);
+				const numLabel = Number(label?.textContent);
+				if (active === null || numLabel !== active + 1) return;
+				const color = colors[numLabel - 1];
+
+				el?.setAttribute('fill', color);
+				el?.setAttribute('stroke', color);
+				el?.classList.remove('unfilled');
+				el?.removeEventListener('click', paint);
+				label?.removeEventListener('click', paint);
+				label?.remove();
+			}
 			document.getElementById(`shape-${i}`)?.addEventListener('click', () => {
-                const label = document.getElementById(`label-${i}`);
-                if (!label) return;
-                const el = document.getElementById(`shape-${i}`);
-                const color = colors[Number(label?.textContent)];
-                el?.setAttribute('fill', color);
-                el?.setAttribute('stroke', color);
-                label?.remove();
+				paint();
+			});
+			document.getElementById(`label-${i}`)?.addEventListener('click', () => {
+				paint();
 			});
 		}
 	});
@@ -73,17 +85,37 @@
 {#if loaded}
 	<div class="absolute">
 		{@html shape}
+		<div class="fixed bottom-4 left-1/2 -translate-x-1/2">
+			<div class="flex w-full gap-2 rounded-lg bg-white p-4 drop-shadow-md">
+				{#each colors as color, i}
+					<button
+						class={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-md ${
+							i === active ? 'border-2 border-black' : ''
+						}`}
+						onclick={() => (active = i)}
+						style="background-color: {color}"
+					>
+						{i + 1}
+					</button>
+				{/each}
+			</div>
+		</div>
 	</div>
 {/if}
 
 <style>
-    :global(path) {
-        background-color: #ffffff;
-    }
+	:global(path) {
+		background-color: #ffffff;
+	}
 
-    :global(text) {
-        fill: oklch(0.714 0.203 305.504);
-        font-weight: bold;
-        font-family: 'Inter', sans-serif;
-    }
+	:global(.unfilled) {
+		cursor: pointer;
+	}
+
+	:global(text) {
+		fill: oklch(0.714 0.203 305.504);
+		font-weight: bold;
+		font-family: 'Inter', sans-serif;
+		cursor: pointer;
+	}
 </style>

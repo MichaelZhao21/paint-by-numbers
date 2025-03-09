@@ -63,7 +63,7 @@ pub fn img_to_svg(img: &RgbImage) -> (String, Vec<String>) {
             let borders = borders.iter().map(|b| optimize_border(b.clone())).collect::<Vec<_>>();
 
             // Write the borders to SVG
-            out.push_str(&format!("<path stroke=\"black\" fill=\"transparent\" stroke-width=\"1\" id=\"shape-{}\" fill-rule=\"evenodd\" d=\"", area_count));
+            out.push_str(&format!("<path stroke=\"black\" fill=\"transparent\" stroke-width=\"1\" id=\"shape-{}\" fill-rule=\"evenodd\" class=\"unfilled\" d=\"", area_count));
             for border in borders.iter() {
                 out.push_str(&format!(" M{} {}", border[0].0, border[0].1));
                 for (x, y) in border.iter().skip(1) {
