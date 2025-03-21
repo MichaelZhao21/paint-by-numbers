@@ -9,8 +9,11 @@
 	let shape = $state<string | null>(null);
 	let colors = $state<string[]>([]);
 	let active = $state<number | null>(0);
+	let info = $state<number | null>(null);
+	let infoTimeout = $state<number | null>(null);
 	let transX = 0;
 	let transY = 0;
+	let zoom = 1;
 
 	async function startPainting() {
 		if (!files) {
@@ -42,11 +45,24 @@
 		// Create click event listeners for each path
 		for (let i = 0; i < count; i++) {
 			function paint() {
+				// Check label
 				const label = document.getElementById(`label-${i}`);
 				if (!label) return;
 				const el = document.getElementById(`shape-${i}`);
 				const numLabel = Number(label?.textContent);
-				if (active === null || numLabel !== active + 1) return;
+				if (active === null) return;
+				if (numLabel !== active + 1) {
+					if (infoTimeout) {
+						clearTimeout(infoTimeout);
+						infoTimeout = null;
+					}
+					info = numLabel;
+					infoTimeout = setTimeout(() => {
+						info = null;
+						infoTimeout = null;
+					}, 2000);
+					return;
+				}
 				const color = colors[numLabel - 1];
 
 				el?.setAttribute('fill', color);
@@ -64,6 +80,14 @@
 			});
 		}
 
+		// Transform SVG to center
+		const svg = document.querySelector('svg');
+		if (!svg) return;
+		const { width, height } = svg.getBBox();
+		transX = window.innerWidth / 2 - width / 2;
+		transY = window.innerHeight / 2 - height / 2;
+		svg.style.transform = `translate(${transX}px, ${transY}px) scale(${zoom})`;
+
 		// Create drag event listener
 		document.addEventListener('mousedown', (e) => {
 			let startX = e.clientX;
@@ -80,7 +104,7 @@
 				const svg = document.querySelector('svg');
 				if (!svg) return;
 
-				svg.style.transform = `translate(${transX}px, ${transY}px)`;
+				svg.style.transform = `translate(${transX}px, ${transY}px) scale(${zoom})`;
 			}
 
 			function drop() {
@@ -91,6 +115,18 @@
 			document.addEventListener('mousemove', drag);
 			document.addEventListener('mouseup', drop);
 		});
+
+		// Create zoom event listener
+		document.addEventListener('wheel', (e) => {
+			zoom += e.deltaY * -0.001;
+			zoom = Math.max(0.1, zoom);
+			zoom = Math.min(10, zoom);
+
+			const svg = document.querySelector('svg');
+			if (!svg) return;
+
+			svg.style.transform = `translate(${transX}px, ${transY}px) scale(${zoom})`;
+		});
 	});
 
 	function tooDark(color: string) {
@@ -98,7 +134,7 @@
 		const r = parseInt(hex.substring(0, 0 + 2), 16);
 		const g = parseInt(hex.substring(2, 2 + 2), 16);
 		const b = parseInt(hex.substring(4, 4 + 2), 16);
-		const brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+		const brightness = (r * 299 + g * 587 + b * 114) / 1000;
 		return brightness <= 155;
 	}
 </script>
@@ -122,7 +158,7 @@
 {/if}
 
 {#if loaded}
-	<div class="absolute">
+	<div class="absolute h-screen w-screen overflow-hidden">
 		{@html shape}
 		<div class="fixed bottom-4 left-1/2 -translate-x-1/2">
 			<div class="flex w-full gap-2 rounded-lg bg-white p-4 drop-shadow-md">
@@ -139,6 +175,20 @@
 				{/each}
 			</div>
 		</div>
+		{#if info}
+			<div class="fixed top-4 right-4">
+				<div
+					class={`flex w-full gap-2 rounded-lg bg-white p-2 drop-shadow-md ${tooDark(colors[info - 1]) ? 'text-white' : 'text-black'}`}
+				>
+					<div
+						class="flex h-8 w-8 items-center justify-center rounded-md"
+						style="background-color: {colors[info - 1]}"
+					>
+						{info}
+					</div>
+				</div>
+			</div>
+		{/if}
 	</div>
 {/if}
 
