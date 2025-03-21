@@ -9,6 +9,8 @@
 	let shape = $state<string | null>(null);
 	let colors = $state<string[]>([]);
 	let active = $state<number | null>(0);
+	let transX = 0;
+	let transY = 0;
 
 	async function startPainting() {
 		if (!files) {
@@ -61,7 +63,44 @@
 				paint();
 			});
 		}
+
+		// Create drag event listener
+		document.addEventListener('mousedown', (e) => {
+			let startX = e.clientX;
+			let startY = e.clientY;
+
+			function drag(e: MouseEvent) {
+				const dx = e.clientX - startX;
+				const dy = e.clientY - startY;
+				transX += dx;
+				transY += dy;
+				startX = e.clientX;
+				startY = e.clientY;
+
+				const svg = document.querySelector('svg');
+				if (!svg) return;
+
+				svg.style.transform = `translate(${transX}px, ${transY}px)`;
+			}
+
+			function drop() {
+				document.removeEventListener('mousemove', drag);
+				document.removeEventListener('mouseup', drop);
+			}
+
+			document.addEventListener('mousemove', drag);
+			document.addEventListener('mouseup', drop);
+		});
 	});
+
+	function tooDark(color: string) {
+		const hex = color.replace('#', '');
+		const r = parseInt(hex.substring(0, 0 + 2), 16);
+		const g = parseInt(hex.substring(2, 2 + 2), 16);
+		const b = parseInt(hex.substring(4, 4 + 2), 16);
+		const brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+		return brightness <= 155;
+	}
 </script>
 
 {#if !loaded}
@@ -90,8 +129,8 @@
 				{#each colors as color, i}
 					<button
 						class={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-md ${
-							i === active ? 'border-2 border-black' : ''
-						}`}
+							i === active ? 'outline-4 outline-purple-400' : 'outline-4 outline-white'
+						} ${tooDark(color) ? 'text-white' : 'text-black'}`}
 						onclick={() => (active = i)}
 						style="background-color: {color}"
 					>
@@ -117,5 +156,10 @@
 		font-weight: bold;
 		font-family: 'Inter', sans-serif;
 		cursor: pointer;
+
+		user-select: none;
+		-moz-user-select: -moz-none;
+		-khtml-user-select: none;
+		-webkit-user-select: none;
 	}
 </style>
