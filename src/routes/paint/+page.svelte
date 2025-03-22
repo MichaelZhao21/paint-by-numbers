@@ -1,11 +1,11 @@
 <script lang="ts">
 	import init, { flat_to_svg } from 'pbn';
-	import Button from '../../components/Button.svelte';
-	import ImageUpload from '../../components/ImageUpload.svelte';
 	import { onMount } from 'svelte';
+	import { page } from '$app/state';
+	import Loading from '../../components/Loading.svelte';
 
 	let files = $state<FileList | null>(null);
-	let loaded = $state<boolean>(false);
+	let loading = $state<boolean>(true);
 	let shape = $state<string | null>(null);
 	let colors = $state<string[]>([]);
 	let active = $state<number | null>(0);
@@ -15,26 +15,34 @@
 	let transY = 0;
 	let zoom = 1;
 
-	async function startPainting() {
-		if (!files) {
-			return;
-		}
-
-		const file = files[0];
-
-		const blob = await file.arrayBuffer();
-		const u8s = new Uint8Array(blob);
-
-		const data = flat_to_svg(u8s);
-		shape = data.svg;
-		colors = data.colors;
-
-		loaded = true;
-	}
-
 	onMount(async () => {
 		// Load web assembly module
 		await init();
+
+		// Get image url
+		const name = page.url.searchParams.get('name');
+		if (!name) return;
+
+		// Check to see if image in local storage
+		const rawSavedList = localStorage.getItem('files');
+		const savedList = rawSavedList ? rawSavedList.split(',') : [];
+		if (!savedList.includes(name)) {
+			alert('Image not found in local storage');
+			return;
+		}
+
+		// Load image from OPFS
+		const dir = await navigator.storage.getDirectory();
+		const fileHandler = await dir.getFileHandle(name, { create: false });
+		const file = await fileHandler.getFile();
+		const blob = await file.arrayBuffer();
+
+		// Convert image to SVG
+		const u8s = new Uint8Array(blob);
+		const data = flat_to_svg(u8s);
+		shape = data.svg;
+		colors = data.colors;
+		loading = false;
 	});
 
 	$effect(() => {
@@ -49,6 +57,7 @@
 				const label = document.getElementById(`label-${i}`);
 				if (!label) return;
 				const el = document.getElementById(`shape-${i}`);
+				if (!el) return;
 				const numLabel = Number(label?.textContent);
 				if (active === null) return;
 				if (numLabel !== active + 1) {
@@ -65,12 +74,12 @@
 				}
 				const color = colors[numLabel - 1];
 
-				el?.setAttribute('fill', color);
-				el?.setAttribute('stroke', color);
-				el?.classList.remove('unfilled');
-				el?.removeEventListener('click', paint);
-				label?.removeEventListener('click', paint);
-				label?.remove();
+				el.setAttribute('fill', color);
+				el.setAttribute('stroke', color);
+				el.classList.remove('unfilled');
+				el.removeEventListener('click', paint);
+				label.removeEventListener('click', paint);
+				label.remove();
 			}
 			document.getElementById(`shape-${i}`)?.addEventListener('click', () => {
 				paint();
@@ -84,9 +93,11 @@
 		const svg = document.querySelector('svg');
 		if (!svg) return;
 		const { width, height } = svg.getBBox();
-		transX = window.innerWidth / 2 - width / 2;
-		transY = window.innerHeight / 2 - height / 2;
-		svg.style.transform = `translate(${transX}px, ${transY}px) scale(${zoom})`;
+		if (Math.abs(height) < 3000 && Math.abs(width) < 3000) {
+			transX = window.innerWidth / 2 - width / 2;
+			transY = window.innerHeight / 2 - height / 2;
+			svg.style.transform = `translate(${transX}px, ${transY}px) scale(${zoom})`;
+		}
 
 		// Create drag event listener
 		document.addEventListener('mousedown', (e) => {
@@ -139,25 +150,7 @@
 	}
 </script>
 
-{#if !loaded}
-	<div class="flex flex-col items-center px-4">
-		<h1 class="mt-8 text-center text-4xl font-bold">Paint by Number!</h1>
-		<p class="my-4 text-center text-slate-700">
-			Upload a converted image and start painting! If you would like to convert an image,
-			<a href="/" class="text-purple-400 underline hover:text-purple-500">
-				go to the previous page.
-			</a>
-		</p>
-		<div
-			class="mb-4 flex flex-col flex-wrap items-center gap-y-2 rounded-lg bg-white p-4 drop-shadow-md"
-		>
-			<ImageUpload bind:files />
-			<Button text="Start Painting" handleClick={startPainting} disabled={!files} />
-		</div>
-	</div>
-{/if}
-
-{#if loaded}
+{#if !loading}
 	<div class="absolute h-screen w-screen overflow-hidden">
 		{@html shape}
 		<div class="fixed bottom-4 left-1/2 -translate-x-1/2">
@@ -191,6 +184,8 @@
 		{/if}
 	</div>
 {/if}
+
+<Loading bind:loading />
 
 <style>
 	:global(path) {

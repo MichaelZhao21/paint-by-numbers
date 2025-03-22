@@ -1,16 +1,22 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import init, { img_to_flat, test } from 'pbn';
+	import init, { img_to_flat } from 'pbn';
 	import Button from '../components/Button.svelte';
 	import { goto } from '$app/navigation';
 	import ImageUpload from '../components/ImageUpload.svelte';
+	import Card from '../components/Card.svelte';
+	import TextField from '../components/TextField.svelte';
+	import Loading from '../components/Loading.svelte';
 
 	let files = $state<FileList | null>(null);
 	let fn = $derived(files ? files[0].name : '');
 	let src = $state<string>();
 	let colors = $state<string>('10');
 	let minArea = $state<string>('20');
+	let name = $state<string>('');
+	let savedList = $state<string[]>([]);
 	let loading = $state<boolean>(false);
+	let outBlob = $state<Blob | null>(null);
 
 	async function convertFilesInner() {
 		if (!files) {
@@ -37,21 +43,23 @@
 
 		// Note that `files` is of type `FileList`, not an Array:
 		// https://developer.mozilla.org/en-US/docs/Web/API/FileList
-		console.log(files);
-
 		const file = files[0];
 
-		// Extract file content as blob
-		const blob = await file.arrayBuffer();
+		// Set name to filename
+		fn.replace(/\.[^/.]+$/, '');
+		console.log(name);
 
-		// Convert to vec of u8s
+		// Extract file content as blob
+		// and convert to vec of u8s
+		const blob = await file.arrayBuffer();
 		const u8s = new Uint8Array(blob);
 
 		// Call the wasm function
 		const result = img_to_flat(u8s, c, ma);
 
 		// Convert result back to image
-		src = URL.createObjectURL(new Blob([result], { type: 'image/png' }));
+		outBlob = new Blob([result], { type: 'image/png' });
+		src = URL.createObjectURL(outBlob);
 
 		loading = false;
 	}
@@ -76,19 +84,65 @@
 		a.click();
 	}
 
-	async function startPaint() {
-		// Navigate to paint page
-		goto('/paint');
+	async function save() {
+		if (!outBlob) {
+			return;
+		}
+
+		// Save the file to local storage
+		const rawSavedList = localStorage.getItem('files');
+		const savedList = rawSavedList ? rawSavedList.split(',') : [];
+		if (savedList.includes(name)) {
+			let overwrite = confirm('Painting with same name already saved, overwrite?');
+			if (!overwrite) return;
+		}
+		savedList.push(name);
+		localStorage.setItem('files', savedList.join(','));
+
+		// Save the file to the OPFS
+		const dir = await navigator.storage.getDirectory();
+		const fileHandler = await dir.getFileHandle(name, { create: true });
+		const writable = await fileHandler.createWritable();
+		await writable.write(outBlob);
+		await writable.close();
 	}
 
+	async function startPaint() {
+		// Check to see if the file is saved
+		const rawSavedList = localStorage.getItem('files');
+		const savedList = rawSavedList ? rawSavedList.split(',') : [];
+		if (!savedList.includes(name)) {
+			await save();
+		}
+
+		// Navigate to paint page
+		goto(`/paint?name=${encodeURIComponent(name)}`);
+	}
+
+	$effect(() => {
+		if (!files) return;
+
+		name = fn.replace(/\.[^/.]+$/, '');
+	});
+
 	onMount(async () => {
+		loading = true;
+
 		// Load web assembly module
 		await init();
 
 		// Clear file input
 		files = null;
 
-		console.log(test());
+		// Get the list of files from local storage
+		const rawSavedList = localStorage.getItem('files');
+		if (!rawSavedList) {
+			loading = false;
+			return;
+		}
+		savedList = rawSavedList.split(',');
+
+		loading = false;
 	});
 
 	onDestroy(() => {
@@ -98,52 +152,27 @@
 
 <div class="flex flex-col items-center px-4">
 	<h1 class="mt-8 text-center text-4xl font-bold">Image to Paint by Number!</h1>
-	<p class="my-4 text-center text-slate-700">
-		Upload an image and convert it to a paint by number image!
+	<p class="my-4 max-w-lg text-center text-slate-700">
+		Generate a painting from an image. Once you are happy with your result, download your painting,
+		save your painting to your browser, or click "Start Painting" to start painting immediately!
 	</p>
-	<!-- <p class="my-4 text-center text-slate-700">
-		Generate a painting here! Once you are happy with your result, download your painting and click
-		"Start Painting"
-	</p> -->
-	<div
-		class="mb-4 flex flex-col flex-wrap items-center gap-y-2 rounded-lg bg-white p-4 drop-shadow-md"
-	>
+	<Card>
 		<ImageUpload bind:files />
 		<div class="flex flex-wrap gap-x-4 gap-y-2">
-			<div class="flex">
-				<label for="colors" class="pr-1 font-bold">Colors:</label>
-				<input
-					id="colors"
-					type="text"
-					bind:value={colors}
-					class="w-8 rounded-sm border-2 px-1 duration-150 outline-none hover:border-purple-300 focus:border-purple-300"
-				/>
-			</div>
-			<div class="flex">
-				<label for="minArea" class="pr-1 font-bold">Min Area:</label>
-				<input
-					id="minArea"
-					type="text"
-					bind:value={minArea}
-					class="w-8 rounded-sm border-2 px-1 duration-150 outline-none hover:border-purple-300 focus:border-purple-300"
-				/>
-			</div>
+			<TextField bind:value={colors} placeholder="10" className="w-8" />
+			<TextField bind:value={minArea} placeholder="20" className="w-8" />
 		</div>
-	</div>
+		<TextField bind:value={name} placeholder="name painting" className="w-36" />
+	</Card>
 	<div class="flex flex-row flex-wrap gap-4">
 		<Button text="Convert" handleClick={convertFile} disabled={files === null} />
 		{#if src && src !== ''}
 			<Button text="Download" handleClick={download} />
+			<Button text="Save" handleClick={save} />
 			<Button text="Start Painting" handleClick={startPaint} />
 		{/if}
 	</div>
-	{#if loading}
-		<div
-			class="bg-opacity-50 fixed top-0 left-0 z-10 flex h-full w-full items-center justify-center backdrop-blur-lg"
-		>
-			<div class="h-32 w-32 animate-spin rounded-full border-t-4 border-purple-300"></div>
-		</div>
-	{/if}
+	<Loading bind:loading />
 
 	<!-- Frame for image -->
 	{#if src && src !== ''}
