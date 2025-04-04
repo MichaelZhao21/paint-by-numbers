@@ -11,6 +11,7 @@
 	let active = $state<number | null>(0);
 	let info = $state<number | null>(null);
 	let infoTimeout = $state<number | null>(null);
+	let touches = 0;
 	let transX = 0;
 	let transY = 0;
 	let zoom = 1;
@@ -137,6 +138,38 @@
 			if (!svg) return;
 
 			svg.style.transform = `translate(${transX}px, ${transY}px) scale(${zoom})`;
+		});
+
+		// Create touch event listener
+		document.addEventListener('touchstart', (e) => {
+			if (e.touches.length === 1) {
+				touches == 1;
+				let startX = e.touches[0].clientX;
+				let startY = e.touches[0].clientY;
+
+				function drag(e: TouchEvent) {
+					const dx = e.touches[0].clientX - startX;
+					const dy = e.touches[0].clientY - startY;
+					transX += dx;
+					transY += dy;
+					startX = e.touches[0].clientX;
+					startY = e.touches[0].clientY;
+
+					const svg = document.querySelector('svg');
+					if (!svg) return;
+
+					svg.style.transform = `translate(${transX}px, ${transY}px) scale(${zoom})`;
+				}
+
+				function drop() {
+					document.removeEventListener('touchmove', drag);
+					document.removeEventListener('touchend', drop);
+				}
+
+				document.addEventListener('touchmove', drag);
+				document.addEventListener('touchend', drop);
+			} else if (e.touches.length === 2) {
+			}
 		});
 	});
 
