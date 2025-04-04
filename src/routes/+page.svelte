@@ -159,10 +159,10 @@
 	<Card>
 		<ImageUpload bind:files />
 		<div class="flex flex-wrap gap-x-4 gap-y-2">
-			<TextField bind:value={colors} placeholder="10" className="w-8" />
-			<TextField bind:value={minArea} placeholder="20" className="w-8" />
+			<TextField label="Colors" bind:value={colors} placeholder="10" className="w-8" />
+			<TextField label="Min Area" bind:value={minArea} placeholder="20" className="w-8" />
 		</div>
-		<TextField bind:value={name} placeholder="name painting" className="w-36" />
+		<TextField label="Name" bind:value={name} placeholder="name painting" className="w-36" />
 	</Card>
 	<div class="flex flex-row flex-wrap gap-4">
 		<Button text="Convert" handleClick={convertFile} disabled={files === null} />

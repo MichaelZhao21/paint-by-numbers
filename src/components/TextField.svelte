@@ -1,14 +1,15 @@
 <script lang="ts">
 	interface TextFieldProps {
+		label: string;
 		value: string;
 		placeholder?: string;
 		className?: string;
 	}
-	let { value = $bindable(), placeholder, className }: TextFieldProps = $props();
+	let { label, value = $bindable(), placeholder, className }: TextFieldProps = $props();
 </script>
 
 <div class="flex">
-	<label for="colors" class="pr-1 font-bold">Colors:</label>
+	<label for="colors" class="pr-1 font-bold">{label}:</label>
 	<input
 		id="colors"
 		type="text"
