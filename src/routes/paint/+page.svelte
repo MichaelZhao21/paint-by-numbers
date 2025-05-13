@@ -1,8 +1,9 @@
 <script lang="ts">
 	import init, { flat_to_svg } from 'pbn';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import Loading from '../../components/Loading.svelte';
+	import { goto } from '$app/navigation';
 
 	let loading = $state<boolean>(true);
 	let shape = $state<string | null>(null);
@@ -10,6 +11,9 @@
 	let active = $state<number | null>(0);
 	let info = $state<number | null>(null);
 	let infoTimeout = $state<number | null>(null);
+	let painted = $state<boolean[]>([]);
+	let name = $state<string | null>(null);
+	let count = $state<number>(0);
 	let touches = 0;
 	let transX = 0;
 	let transY = 0;
@@ -18,9 +22,10 @@
 	onMount(async () => {
 		// Load web assembly module
 		await init();
+		console.log('loaded');
 
 		// Get image url
-		const name = page.url.searchParams.get('name');
+		name = page.url.searchParams.get('name');
 		if (!name) return;
 
 		// Check to see if image in local storage
@@ -28,6 +33,7 @@
 		const savedList = rawSavedList ? rawSavedList.split(',') : [];
 		if (!savedList.includes(name)) {
 			alert('Image not found in local storage');
+			goto('/');
 			return;
 		}
 
@@ -42,117 +48,93 @@
 		const data = flat_to_svg(u8s);
 		shape = data.svg;
 		colors = data.colors;
+
+		count = shape.match(/<path/g)?.length || 0;
+
+		// Load in painted paths
+		const rawPaintedList = localStorage.getItem(`painted-${name}`);
+		if (rawPaintedList) {
+			painted = rawPaintedList.split('').map((v) => v === '1');
+		} else {
+			painted = new Array(count).fill(false);
+		}
+
+		console.log('hi');
 		loading = false;
 	});
 
 	$effect(() => {
 		if (!shape) return;
 
-		const count = shape.match(/<path/g)?.length || 0;
-
-		// Create click event listeners for each path
-		for (let i = 0; i < count; i++) {
-			function paint() {
-				// Check label
-				const label = document.getElementById(`label-${i}`);
-				if (!label) return;
-				const el = document.getElementById(`shape-${i}`);
-				if (!el) return;
-				const numLabel = Number(label?.textContent);
-				if (active === null) return;
-				if (numLabel !== active + 1) {
-					if (infoTimeout) {
-						clearTimeout(infoTimeout);
-						infoTimeout = null;
+		untrack(() => {
+			// Create click event listeners for each path
+			for (let i = 0; i < count; i++) {
+				function paint(ignoreActive = false) {
+					// Check label
+					const label = document.getElementById(`label-${i}`);
+					if (!label) return;
+					const el = document.getElementById(`shape-${i}`);
+					if (!el) return;
+					const numLabel = Number(label?.textContent);
+					if (active === null) return;
+					if (!ignoreActive && numLabel !== active + 1) {
+						if (infoTimeout) {
+							clearTimeout(infoTimeout);
+							infoTimeout = null;
+						}
+						info = numLabel;
+						infoTimeout = setTimeout(() => {
+							info = null;
+							infoTimeout = null;
+						}, 2000);
+						return;
 					}
-					info = numLabel;
-					infoTimeout = setTimeout(() => {
-						info = null;
-						infoTimeout = null;
-					}, 2000);
-					return;
+					const color = colors[numLabel - 1];
+
+					el.setAttribute('fill', color);
+					el.setAttribute('stroke', color);
+					el.classList.remove('unfilled');
+					el.removeEventListener('click', paint as any);
+					label.removeEventListener('click', paint as any);
+					label.remove();
+					painted[i] = true;
+					localStorage.setItem(`painted-${name}`, painted.map((p) => (p ? '1' : '0')).join(''));
 				}
-				const color = colors[numLabel - 1];
-
-				el.setAttribute('fill', color);
-				el.setAttribute('stroke', color);
-				el.classList.remove('unfilled');
-				el.removeEventListener('click', paint);
-				label.removeEventListener('click', paint);
-				label.remove();
+				document.getElementById(`shape-${i}`)?.addEventListener('click', () => {
+					paint();
+				});
+				document.getElementById(`label-${i}`)?.addEventListener('click', () => {
+					paint();
+				});
+				if (painted[i]) {
+					paint(true);
+				}
 			}
-			document.getElementById(`shape-${i}`)?.addEventListener('click', () => {
-				paint();
-			});
-			document.getElementById(`label-${i}`)?.addEventListener('click', () => {
-				paint();
-			});
-		}
 
-		// Transform SVG to center
-		const svg = document.querySelector('svg');
-		if (!svg) return;
-		const { width, height } = svg.getBBox();
-		if (Math.abs(height) < 3000 && Math.abs(width) < 3000) {
-			transX = window.innerWidth / 2 - width / 2;
-			transY = window.innerHeight / 2 - height / 2;
-			svg.style.transform = `translate(${transX}px, ${transY}px) scale(${zoom})`;
-		}
-
-		// Create drag event listener
-		document.addEventListener('mousedown', (e) => {
-			let startX = e.clientX;
-			let startY = e.clientY;
-
-			function drag(e: MouseEvent) {
-				const dx = e.clientX - startX;
-				const dy = e.clientY - startY;
-				transX += dx;
-				transY += dy;
-				startX = e.clientX;
-				startY = e.clientY;
-
-				const svg = document.querySelector('svg');
-				if (!svg) return;
-
+			// Transform SVG to center
+			const svg = document.querySelector('svg');
+			console.log('wubba');
+			console.log(svg);
+			if (!svg) return;
+			const { width, height } = svg.getBBox();
+			if (Math.abs(height) < 3000 && Math.abs(width) < 3000) {
+				transX = window.innerWidth / 2 - width / 2;
+				transY = window.innerHeight / 2 - height / 2;
 				svg.style.transform = `translate(${transX}px, ${transY}px) scale(${zoom})`;
 			}
 
-			function drop() {
-				document.removeEventListener('mousemove', drag);
-				document.removeEventListener('mouseup', drop);
-			}
+			// Create drag event listener
+			document.addEventListener('mousedown', (e) => {
+				let startX = e.clientX;
+				let startY = e.clientY;
 
-			document.addEventListener('mousemove', drag);
-			document.addEventListener('mouseup', drop);
-		});
-
-		// Create zoom event listener
-		document.addEventListener('wheel', (e) => {
-			zoom += e.deltaY * -0.001;
-			zoom = Math.max(0.1, zoom);
-			zoom = Math.min(10, zoom);
-
-			const svg = document.querySelector('svg');
-			if (!svg) return;
-
-			svg.style.transform = `translate(${transX}px, ${transY}px) scale(${zoom})`;
-		});
-
-		// Create touch event listener
-		document.addEventListener('touchstart', (e) => {
-			if (e.touches.length === 1) {
-				touches == 1;
-				let startX = e.touches[0].clientX;
-				let startY = e.touches[0].clientY;
-
-				function drag(e: TouchEvent) {
-					const dx = e.touches[0].clientX - startX;
-					const dy = e.touches[0].clientY - startY;
+				function drag(e: MouseEvent) {
+					const dx = e.clientX - startX;
+					const dy = e.clientY - startY;
 					transX += dx;
 					transY += dy;
-					startX = e.touches[0].clientX;
-					startY = e.touches[0].clientY;
+					startX = e.clientX;
+					startY = e.clientY;
 
 					const svg = document.querySelector('svg');
 					if (!svg) return;
@@ -161,14 +143,57 @@
 				}
 
 				function drop() {
-					document.removeEventListener('touchmove', drag);
-					document.removeEventListener('touchend', drop);
+					document.removeEventListener('mousemove', drag);
+					document.removeEventListener('mouseup', drop);
 				}
 
-				document.addEventListener('touchmove', drag);
-				document.addEventListener('touchend', drop);
-			} else if (e.touches.length === 2) {
-			}
+				document.addEventListener('mousemove', drag);
+				document.addEventListener('mouseup', drop);
+			});
+
+			// Create zoom event listener
+			document.addEventListener('wheel', (e) => {
+				zoom += e.deltaY * -0.001;
+				zoom = Math.max(0.1, zoom);
+				zoom = Math.min(10, zoom);
+
+				const svg = document.querySelector('svg');
+				if (!svg) return;
+
+				svg.style.transform = `translate(${transX}px, ${transY}px) scale(${zoom})`;
+			});
+
+			// Create touch event listener
+			// document.addEventListener('touchstart', (e) => {
+			// 	if (e.touches.length === 1) {
+			// 		touches == 1;
+			// 		let startX = e.touches[0].clientX;
+			// 		let startY = e.touches[0].clientY;
+
+			// 		function drag(e: TouchEvent) {
+			// 			const dx = e.touches[0].clientX - startX;
+			// 			const dy = e.touches[0].clientY - startY;
+			// 			transX += dx;
+			// 			transY += dy;
+			// 			startX = e.touches[0].clientX;
+			// 			startY = e.touches[0].clientY;
+
+			// 			const svg = document.querySelector('svg');
+			// 			if (!svg) return;
+
+			// 			svg.style.transform = `translate(${transX}px, ${transY}px) scale(${zoom})`;
+			// 		}
+
+			// 		function drop() {
+			// 			document.removeEventListener('touchmove', drag);
+			// 			document.removeEventListener('touchend', drop);
+			// 		}
+
+			// 		document.addEventListener('touchmove', drag);
+			// 		document.addEventListener('touchend', drop);
+			// 	} else if (e.touches.length === 2) {
+			// 	}
+			// });
 		});
 	});
 
