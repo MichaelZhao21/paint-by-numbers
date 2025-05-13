@@ -17,6 +17,7 @@
 	let savedList = $state<string[]>([]);
 	let loading = $state<boolean>(false);
 	let outBlob = $state<Blob | null>(null);
+	let message = $state<string>('');
 
 	async function convertFilesInner() {
 		if (!files) {
@@ -82,11 +83,13 @@
 		a.href = src;
 		a.download = `${fn?.split('.')[0]}_flat.png`;
 		a.click();
+
+		message = `Downloaded ${name} as ${a.download}`;
 	}
 
 	async function save() {
 		if (!outBlob) {
-			return;
+			return false;
 		}
 
 		// Save the file to local storage
@@ -94,7 +97,7 @@
 		const savedList = rawSavedList ? rawSavedList.split(',') : [];
 		if (savedList.includes(name)) {
 			let overwrite = confirm('Painting with same name already saved, overwrite?');
-			if (!overwrite) return;
+			if (!overwrite) return false;
 		}
 		savedList.push(name);
 		localStorage.setItem('files', savedList.join(','));
@@ -105,14 +108,15 @@
 		const writable = await fileHandler.createWritable();
 		await writable.write(outBlob);
 		await writable.close();
+
+		message = `Saved ${name} to browser's storage`;
+		return true;
 	}
 
 	async function startPaint() {
-		// Check to see if the file is saved
-		const rawSavedList = localStorage.getItem('files');
-		const savedList = rawSavedList ? rawSavedList.split(',') : [];
-		if (!savedList.includes(name)) {
-			await save();
+		const saveStatus = await save();
+		if (!saveStatus) {
+			return;
 		}
 
 		// Navigate to paint page
@@ -163,15 +167,22 @@
 			<TextField label="Min Area" bind:value={minArea} placeholder="20" className="w-8" />
 		</div>
 		<TextField label="Name" bind:value={name} placeholder="name painting" className="w-36" />
+		<Button text="Convert" handleClick={convertFile} disabled={files === null} className="mt-2" />
 	</Card>
-	<div class="flex flex-row flex-wrap gap-4">
-		<Button text="Convert" handleClick={convertFile} disabled={files === null} />
-		{#if src && src !== ''}
-			<Button text="Download" handleClick={download} />
-			<Button text="Save" handleClick={save} />
-			<Button text="Start Painting" handleClick={startPaint} />
-		{/if}
-	</div>
+	{#if src && src !== ''}
+		<div class="flex flex-row flex-wrap gap-4">
+			<Button text="Download" handleClick={download} tooltip="Save the painting to your computer" />
+			<Button text="Save" handleClick={save} tooltip="Save the painting to the browser's storage" />
+			<Button
+				text="Start Painting"
+				handleClick={startPaint}
+				tooltip="Save the painting to the browser and start painting!"
+			/>
+		</div>
+	{/if}
+	{#if message && message !== ''}
+		<p class="mt-4 text-center text-slate-700">{message}</p>
+	{/if}
 	<Loading bind:loading />
 
 	<!-- Frame for image -->
