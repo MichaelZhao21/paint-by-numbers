@@ -163,6 +163,17 @@
 				svg.style.transform = `translate(${transX}px, ${transY}px) scale(${zoom})`;
 			});
 
+			// Create number key listener
+			document.addEventListener('keydown', (e) => {
+				if (e.key >= '0' && e.key <= '9') {
+					let num = Number(e.key);
+					if (num === 0) num = 10;
+					if (num > 0 && num <= colors.length) {
+						active = num - 1;
+					}
+				}
+			});
+
 			// Create touch event listener
 			// document.addEventListener('touchstart', (e) => {
 			// 	if (e.touches.length === 1) {
