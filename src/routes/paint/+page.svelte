@@ -22,7 +22,6 @@
 	onMount(async () => {
 		// Load web assembly module
 		await init();
-		console.log('loaded');
 
 		// Get image url
 		name = page.url.searchParams.get('name');
@@ -59,7 +58,6 @@
 			painted = new Array(count).fill(false);
 		}
 
-		console.log('hi');
 		loading = false;
 	});
 
@@ -113,8 +111,6 @@
 
 			// Transform SVG to center
 			const svg = document.querySelector('svg');
-			console.log('wubba');
-			console.log(svg);
 			if (!svg) return;
 			const { width, height } = svg.getBBox();
 			if (Math.abs(height) < 3000 && Math.abs(width) < 3000) {
