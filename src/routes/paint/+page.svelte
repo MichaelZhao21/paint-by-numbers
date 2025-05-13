@@ -4,7 +4,6 @@
 	import { page } from '$app/state';
 	import Loading from '../../components/Loading.svelte';
 
-	let files = $state<FileList | null>(null);
 	let loading = $state<boolean>(true);
 	let shape = $state<string | null>(null);
 	let colors = $state<string[]>([]);

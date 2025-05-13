@@ -9,7 +9,7 @@
 	import Loading from '../components/Loading.svelte';
 
 	let files = $state<FileList | null>(null);
-	let fn = $derived(files ? files[0].name : '');
+	let fn = $derived(files && files.length > 0 ? files[0].name : '');
 	let src = $state<string>();
 	let colors = $state<string>('10');
 	let minArea = $state<string>('20');
@@ -116,7 +116,7 @@
 		}
 
 		// Navigate to paint page
-		goto(`/paint?name=${encodeURIComponent(name)}`);
+		goto(`/paint?name=${encodeURIComponent(name)}`, { replaceState: true });
 	}
 
 	$effect(() => {
