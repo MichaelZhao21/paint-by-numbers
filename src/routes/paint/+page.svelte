@@ -4,6 +4,9 @@
 	import { page } from '$app/state';
 	import Loading from '../../components/Loading.svelte';
 	import { goto } from '$app/navigation';
+	import HamburgerIcon from '../../components/HamburgerIcon.svelte';
+	import CloseIcon from '../../components/CloseIcon.svelte';
+	import Button from '../../components/Button.svelte';
 
 	let loading = $state<boolean>(true);
 	let shape = $state<string | null>(null);
@@ -14,6 +17,7 @@
 	let painted = $state<boolean[]>([]);
 	let name = $state<string | null>(null);
 	let count = $state<number>(0);
+	let menuOpen = $state<boolean>(false);
 	let touches = 0;
 	let transX = 0;
 	let transY = 0;
@@ -212,6 +216,35 @@
 		const brightness = (r * 299 + g * 587 + b * 114) / 1000;
 		return brightness <= 155;
 	}
+
+	function downloadToPng() {
+		const svg = document.querySelector('svg');
+		if (!svg) return;
+
+		// Serialize the SVG to a string, removing the style tag
+		const serializer = new XMLSerializer();
+		const svgString = serializer.serializeToString(svg).replace(/style=".*"/, '');
+
+		// Create a canvas element
+		const canvas = document.createElement('canvas');
+		const ctx = canvas.getContext('2d');
+
+		// Draw the SVG to the canvas using an image
+		const img = new Image();
+		img.width = svg.clientWidth;
+		img.height = svg.clientHeight;
+		img.onload = () => {
+			canvas.width = img.width;
+			canvas.height = img.height;
+			ctx?.drawImage(img, 0, 0, img.width, img.height);
+			const png = canvas.toDataURL('image/png');
+			const a = document.createElement('a');
+			a.href = png;
+			a.download = `${name}.png`;
+			a.click();
+		};
+		img.src = 'data:image/svg+xml;base64,' + btoa(svgString);
+	}
 </script>
 
 {#if !loading}
@@ -230,6 +263,33 @@
 						{i + 1}
 					</button>
 				{/each}
+			</div>
+		</div>
+		<div class="fixed top-4 left-4">
+			<div class="flex w-full flex-col gap-2 rounded-lg bg-white p-2 drop-shadow-md">
+				{#if menuOpen}
+					<button
+						onclick={() => {
+							menuOpen = false;
+						}}
+					>
+						<CloseIcon />
+					</button>
+					<Button
+						text="Download"
+						handleClick={downloadToPng}
+						tooltip="Download the current painting as a PNG image"
+					/>
+					<Button text="Home" handleClick={() => goto('/')} tooltip="Go back to the home page" />
+				{:else}
+					<button
+						onclick={() => {
+							menuOpen = true;
+						}}
+					>
+						<HamburgerIcon />
+					</button>
+				{/if}
 			</div>
 		</div>
 		{#if info}
