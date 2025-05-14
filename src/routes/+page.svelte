@@ -160,6 +160,21 @@
 		Generate a painting from an image. Once you are happy with your result, download your painting,
 		save your painting to your browser, or click "Start Painting" to start painting immediately!
 	</p>
+	{#if savedList.length > 0}
+		<Card>
+			<h1 class="text-xl font-bold">Previous Paintings</h1>
+			<div class="flex flex-wrap gap-2">
+				{#each savedList as item}
+					<Button
+						text={item}
+						handleClick={() => {
+							goto(`/paint?name=${encodeURIComponent(item)}`, { replaceState: true });
+						}}
+					/>
+				{/each}
+			</div>
+		</Card>
+	{/if}
 	<Card>
 		<ImageUpload bind:files />
 		<div class="flex flex-wrap gap-x-4 gap-y-2">
