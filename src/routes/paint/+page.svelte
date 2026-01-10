@@ -125,7 +125,7 @@
 			if (Math.abs(height) < 3000 && Math.abs(width) < 3000) {
 				transX = window.innerWidth / 2 - width / 2;
 				transY = window.innerHeight / 2 - height / 2;
-				setZoom();
+				setPos();
 			}
 
 			// Create drag event listener
@@ -141,7 +141,7 @@
 					startX = e.x;
 					startY = e.y;
 
-					setZoom();
+					setPos();
 				}
 
 				function drop() {
@@ -166,7 +166,7 @@
 				transX = e.x - (svgX - centerX) * zoom - centerX;
 				transY = e.y - (svgY - centerY) * zoom - centerY;
 				
-				setZoom();
+				setPos();
 			});
 
 			// Create number key listener
@@ -219,7 +219,7 @@
 		});
 	});
 
-	function setZoom() {
+	function setPos() {
 		const svg = document.querySelector('svg');
 		if (!svg) return;
 		svg.style.transform = `translate(${transX}px, ${transY}px) scale(${zoom})`;
