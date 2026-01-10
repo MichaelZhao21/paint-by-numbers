@@ -4,7 +4,7 @@ As the name suggests, this is a Paint by Numbers generator and player. Inspired 
 
 ## Rust compilation
 
-To compile the Rust app, we will use `wasm-pack` to create a production wasm binary, along with helper js and ts files. Here is the command:
+To compile the Rust app, we will use `wasm-pack` (`cargo install wasm-pack`) to create a production wasm binary, along with helper js and ts files. Here is the command, which you should run in the `pbn` directory:
 
 ```bash
 RUSTFLAGS='--cfg getrandom_backend="wasm_js"' wasm-pack build --target web
