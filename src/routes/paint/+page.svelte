@@ -5,7 +5,6 @@
 	import Loading from '../../components/Loading.svelte';
 	import { goto } from '$app/navigation';
 	import HamburgerIcon from '../../components/HamburgerIcon.svelte';
-	import CloseIcon from '../../components/CloseIcon.svelte';
 	import Button from '../../components/Button.svelte';
 
 	let loading = $state<boolean>(true);
@@ -216,6 +215,11 @@
 			// 	} else if (e.touches.length === 2) {
 			// 	}
 			// });
+
+			// Click listener to close menu
+			document.addEventListener('click', () => {
+				if (menuOpen) menuOpen = false;
+			});
 		});
 	});
 
@@ -273,6 +277,16 @@
 		a.download = name + '.png' || 'download.png';
 		a.click();
 	}
+
+	function checkCompletion() {
+		const total = document.querySelectorAll('path').length;
+		const numIncomplete = document.querySelectorAll('path.unfilled').length;
+		if (numIncomplete === total) {
+			alert('You finished the painting!');
+		} else {
+			alert(`There are ${numIncomplete}/${total} unfilled areas!`);
+		}
+	}
 </script>
 
 {#if !loading}
@@ -294,15 +308,8 @@
 			</div>
 		</div>
 		<div class="fixed top-4 left-4">
-			<div class="flex w-full flex-col gap-2 rounded-lg bg-white p-2 drop-shadow-md">
-				{#if menuOpen}
-					<button
-						onclick={() => {
-							menuOpen = false;
-						}}
-					>
-						<CloseIcon />
-					</button>
+			{#if menuOpen}
+				<div class="flex w-full flex-col gap-2 rounded-lg bg-white p-2 drop-shadow-md">
 					<Button text="Home" handleClick={() => goto('/')} tooltip="Go back to the home page" />
 					<Button
 						text="Download Current"
@@ -314,16 +321,23 @@
 						handleClick={downloadFull}
 						tooltip="Download the full painting as a PNG image"
 					/>
-				{:else}
-					<button
-						onclick={() => {
-							menuOpen = true;
-						}}
-					>
-						<HamburgerIcon />
-					</button>
-				{/if}
-			</div>
+					<Button
+						text="Check Completion"
+						handleClick={checkCompletion}
+						tooltip="Check the completion of the puzzle"
+					/>
+				</div>
+			{:else}
+				<button
+					class="flex w-full flex-col gap-2 rounded-lg bg-white p-2 drop-shadow-md cursor-pointer"
+					onclick={(e) => {
+						e.stopPropagation();
+						menuOpen = true;
+					}}
+				>
+					<HamburgerIcon />
+				</button>
+			{/if}
 		</div>
 		{#if info}
 			<div class="fixed top-4 right-4">
