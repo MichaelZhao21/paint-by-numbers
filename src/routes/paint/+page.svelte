@@ -24,6 +24,7 @@
 	let zoom = 1;
 	let centerX = 0;
 	let centerY = 0;
+	const EXTRA_KEYMAP = {'q': 11, 'w': 12, 'e': 13, 'r': 14, 't': 15, 'y': 16, 'u': 17, 'i': 18, 'o': 19, 'p': 20};
 
 	onMount(async () => {
 		// Load web assembly module
@@ -170,12 +171,17 @@
 
 			// Create number key listener
 			document.addEventListener('keydown', (e) => {
+				let num;
 				if (e.key >= '0' && e.key <= '9') {
-					let num = Number(e.key);
+					num = Number(e.key);
 					if (num === 0) num = 10;
-					if (num > 0 && num <= colors.length) {
-						active = num - 1;
-					}
+				}
+				if (e.key in EXTRA_KEYMAP) {
+					num = (EXTRA_KEYMAP as any)[e.key]; // We know e.key is a key... (stupid typescript)
+				}
+
+				if (num && num > 0 && num <= colors.length) {
+					active = num - 1;
 				}
 			});
 
