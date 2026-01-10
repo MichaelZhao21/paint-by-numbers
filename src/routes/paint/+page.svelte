@@ -22,6 +22,8 @@
 	let transX = 0;
 	let transY = 0;
 	let zoom = 1;
+	let centerX = 0;
+	let centerY = 0;
 
 	onMount(async () => {
 		// Load web assembly module
@@ -117,29 +119,28 @@
 			const svg = document.querySelector('svg');
 			if (!svg) return;
 			const { width, height } = svg.getBBox();
+			centerX = width / 2;
+			centerY = height / 2;
 			if (Math.abs(height) < 3000 && Math.abs(width) < 3000) {
 				transX = window.innerWidth / 2 - width / 2;
 				transY = window.innerHeight / 2 - height / 2;
-				svg.style.transform = `translate(${transX}px, ${transY}px) scale(${zoom})`;
+				setZoom();
 			}
 
 			// Create drag event listener
 			document.addEventListener('mousedown', (e) => {
-				let startX = e.clientX;
-				let startY = e.clientY;
+				let startX = e.x;
+				let startY = e.y;
 
 				function drag(e: MouseEvent) {
-					const dx = e.clientX - startX;
-					const dy = e.clientY - startY;
+					const dx = e.x - startX;
+					const dy = e.y - startY;
 					transX += dx;
 					transY += dy;
-					startX = e.clientX;
-					startY = e.clientY;
+					startX = e.x;
+					startY = e.y;
 
-					const svg = document.querySelector('svg');
-					if (!svg) return;
-
-					svg.style.transform = `translate(${transX}px, ${transY}px) scale(${zoom})`;
+					setZoom();
 				}
 
 				function drop() {
@@ -153,14 +154,18 @@
 
 			// Create zoom event listener
 			document.addEventListener('wheel', (e) => {
+				const prevZoom = zoom;
 				zoom += e.deltaY * -0.001;
 				zoom = Math.max(0.1, zoom);
 				zoom = Math.min(10, zoom);
 
-				const svg = document.querySelector('svg');
-				if (!svg) return;
-
-				svg.style.transform = `translate(${transX}px, ${transY}px) scale(${zoom})`;
+				// Scale to keep cursor in same place
+				const svgX = (e.x - transX - centerX) / prevZoom + centerX;
+				const svgY = (e.y - transY - centerY) / prevZoom + centerY;
+				transX = e.x - (svgX - centerX) * zoom - centerX;
+				transY = e.y - (svgY - centerY) * zoom - centerY;
+				
+				setZoom();
 			});
 
 			// Create number key listener
@@ -207,6 +212,12 @@
 			// });
 		});
 	});
+
+	function setZoom() {
+		const svg = document.querySelector('svg');
+		if (!svg) return;
+		svg.style.transform = `translate(${transX}px, ${transY}px) scale(${zoom})`;
+	}
 
 	function tooDark(color: string) {
 		const hex = color.replace('#', '');
