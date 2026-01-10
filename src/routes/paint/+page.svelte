@@ -262,6 +262,17 @@
 		};
 		img.src = 'data:image/svg+xml;base64,' + btoa(svgString);
 	}
+
+	async function downloadFull() {
+		const dir = await navigator.storage.getDirectory();
+		const fileHandler = await dir.getFileHandle(name!, { create: false });
+		const file = await fileHandler.getFile();
+
+		const a = document.createElement('a');
+		a.href = URL.createObjectURL(file);
+		a.download = name + '.png' || 'download.png';
+		a.click();
+	}
 </script>
 
 {#if !loading}
@@ -292,12 +303,17 @@
 					>
 						<CloseIcon />
 					</button>
+					<Button text="Home" handleClick={() => goto('/')} tooltip="Go back to the home page" />
 					<Button
-						text="Download"
+						text="Download Current"
 						handleClick={downloadToPng}
 						tooltip="Download the current painting as a PNG image"
 					/>
-					<Button text="Home" handleClick={() => goto('/')} tooltip="Go back to the home page" />
+					<Button
+						text="Download Finished"
+						handleClick={downloadFull}
+						tooltip="Download the full painting as a PNG image"
+					/>
 				{:else}
 					<button
 						onclick={() => {
