@@ -17,13 +17,15 @@
 	let name = $state<string | null>(null);
 	let count = $state<number>(0);
 	let menuOpen = $state<boolean>(false);
+	let textColor = $state<string>('#c27aff');
+	let fontSize = $state<number>(10);
 	let touches = 0;
 	let transX = 0;
 	let transY = 0;
 	let zoom = 1;
 	let centerX = 0;
 	let centerY = 0;
-	const EXTRA_KEYMAP = {'q': 11, 'w': 12, 'e': 13, 'r': 14, 't': 15, 'y': 16, 'u': 17, 'i': 18, 'o': 19, 'p': 20};
+	const EXTRA_KEYMAP = { q: 11, w: 12, e: 13, r: 14, t: 15, y: 16, u: 17, i: 18, o: 19, p: 20 };
 
 	onMount(async () => {
 		// Load web assembly module
@@ -164,7 +166,7 @@
 				const svgY = (e.y - transY - centerY) / prevZoom + centerY;
 				transX = e.x - (svgX - centerX) * zoom - centerX;
 				transY = e.y - (svgY - centerY) * zoom - centerY;
-				
+
 				setPos();
 			});
 
@@ -290,7 +292,7 @@
 </script>
 
 {#if !loading}
-	<div class="absolute h-screen w-screen overflow-hidden">
+	<div class="absolute h-screen w-screen overflow-hidden" style="--text-color: {textColor}; --font-size: {fontSize}px">
 		{@html shape}
 		<div class="fixed bottom-4 left-1/2 -translate-x-1/2">
 			<div class="flex w-full gap-2 rounded-lg bg-white p-4 drop-shadow-md">
@@ -326,10 +328,26 @@
 						handleClick={checkCompletion}
 						tooltip="Check the completion of the puzzle"
 					/>
+					<div class="flex flex-col w-full">
+						<p>Set Text Color</p>
+						<input
+							type="color"
+							bind:value={textColor}
+							class="w-full cursor-pointer rounded-md border-2 border-white duration-200 hover:border-purple-500"
+							onclick={(e) => e.stopPropagation()}
+						/>
+						<p class="mt-1">Set Text Size</p>
+						<input
+							type="number"
+							bind:value={fontSize}
+							class="w-full cursor-pointer rounded-md border-2 border-white duration-200 hover:border-purple-500"
+							onclick={(e) => e.stopPropagation()}
+						/>
+					</div>
 				</div>
 			{:else}
 				<button
-					class="flex w-full flex-col gap-2 rounded-lg bg-white p-2 drop-shadow-md cursor-pointer"
+					class="flex w-full cursor-pointer flex-col gap-2 rounded-lg bg-white p-2 drop-shadow-md"
 					onclick={(e) => {
 						e.stopPropagation();
 						menuOpen = true;
@@ -368,9 +386,10 @@
 	}
 
 	:global(text) {
-		fill: oklch(0.714 0.203 305.504);
+		fill: var(--text-color);
 		font-weight: bold;
 		font-family: 'Inter', sans-serif;
+		font-size: var(--font-size);
 		cursor: pointer;
 
 		user-select: none;
